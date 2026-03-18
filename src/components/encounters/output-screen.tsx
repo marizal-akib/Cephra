@@ -84,7 +84,7 @@ export function OutputScreen({ encounterId }: { encounterId: string }) {
         <div>
           <h2 className="text-xl font-bold">Assessment Output</h2>
           <p className="text-sm text-muted-foreground">
-            Final diagnostic phenotype results and suggested work-up
+            Final diagnostic phenotype results and suggested plan items
           </p>
         </div>
         <Badge variant="outline" className="shrink-0 text-xs">
@@ -226,12 +226,12 @@ export function OutputScreen({ encounterId }: { encounterId: string }) {
         </CardContent>
       </Card>
 
-      {/* Suggested Work-up */}
+      {/* Suggested Plan Items */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ClipboardList className="h-4 w-4" />
-            Suggested Work-up
+            Suggested Plan Items
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -260,7 +260,7 @@ export function OutputScreen({ encounterId }: { encounterId: string }) {
         <Button variant="outline" asChild>
           <Link href={`/encounters/${encounterId}/workup`}>
             <ClipboardList className="h-4 w-4" />
-            Review Work-up
+            Review Plan & Follow-up
           </Link>
         </Button>
         <Button asChild>

@@ -8,6 +8,7 @@ import { ToggleField } from "@/components/encounter/toggle-field";
 import { NumberField } from "@/components/encounter/number-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function PatternPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
@@ -67,22 +68,40 @@ export default function PatternPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <NumberField
-                  label="Duration (hours)"
-                  description="Typical untreated attack duration"
-                  value={v.duration_hours as number | undefined}
-                  onChange={(val) => set("duration_hours", val)}
-                  min={0}
-                  unit="hours"
-                />
-                <NumberField
-                  label="Duration (minutes)"
-                  description="For short attacks (TAC/cluster)"
-                  value={v.duration_minutes as number | undefined}
-                  onChange={(val) => set("duration_minutes", val)}
-                  min={0}
-                  unit="min"
-                />
+                <div className="space-y-4">
+                  <NumberField
+                    label="Duration (hours)"
+                    description="Typical untreated attack duration"
+                    value={v.duration_hours as number | undefined}
+                    onChange={(val) => set("duration_hours", val)}
+                    min={0}
+                    unit="hours"
+                  />
+                </div>
+                <div className="space-y-2 rounded-lg border p-3">
+                  <NumberField
+                    label="Duration (minutes)"
+                    description="For short attacks (TAC/cluster)"
+                    value={v.duration_minutes as number | undefined}
+                    onChange={(val) => set("duration_minutes", val)}
+                    min={0}
+                    unit="min"
+                    disabled={!!v.duration_minutes_na}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!!v.duration_minutes_na}
+                      onCheckedChange={(checked) => {
+                        const isChecked = checked === true;
+                        set("duration_minutes_na", isChecked);
+                        if (isChecked) {
+                          set("duration_minutes", undefined);
+                        }
+                      }}
+                    />
+                    <span>N/A</span>
+                  </label>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -138,13 +157,29 @@ export default function PatternPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <NumberField
-                  label="Attacks per day"
-                  description="For cluster/TAC patterns"
-                  value={v.attacks_per_day as number | undefined}
-                  onChange={(val) => set("attacks_per_day", val)}
-                  min={0}
-                />
+                <div className="space-y-2 rounded-lg border p-3">
+                  <NumberField
+                    label="Attacks per day"
+                    description="For cluster/TAC patterns"
+                    value={v.attacks_per_day as number | undefined}
+                    onChange={(val) => set("attacks_per_day", val)}
+                    min={0}
+                    disabled={!!v.attacks_per_day_na}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={!!v.attacks_per_day_na}
+                      onCheckedChange={(checked) => {
+                        const isChecked = checked === true;
+                        set("attacks_per_day_na", isChecked);
+                        if (isChecked) {
+                          set("attacks_per_day", undefined);
+                        }
+                      }}
+                    />
+                    <span>N/A</span>
+                  </label>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

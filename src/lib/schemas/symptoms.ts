@@ -10,6 +10,7 @@ export const symptomsSchema = z.object({
   dizziness: z.boolean().optional(),
   fatigue: z.boolean().optional(),
   neck_pain: z.boolean().optional(),
+  associated_symptoms_notes: z.string().optional(),
 });
 
 export type SymptomsFormData = z.infer<typeof symptomsSchema>;

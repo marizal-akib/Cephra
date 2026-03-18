@@ -13,7 +13,7 @@ export default async function ProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, credentials, designation")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -31,6 +31,8 @@ export default async function ProfilePage() {
       lastSignInAt={user.last_sign_in_at ?? null}
       initialName={displayName}
       initialAvatarUrl={initialAvatarUrl}
+      initialCredentials={profile?.credentials ?? null}
+      initialDesignation={profile?.designation ?? null}
     />
   );
 }

@@ -1,28 +1,325 @@
 "use client";
 
 import { useEncounterContext } from "../layout";
+import { createClient } from "@/lib/supabase/client";
+import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrapper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { followUpSchema } from "@/lib/schemas/follow-up";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleHelp,
+  ShieldAlert,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { PhenotypeResult } from "@/lib/engine/types";
+
+const CONFIDENCE_STYLES: Record<
+  PhenotypeResult["confidence"],
+  { badge: string; ring: string }
+> = {
+  high: {
+    badge: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    ring: "ring-emerald-200",
+  },
+  moderate: {
+    badge: "bg-amber-100 text-amber-800 border-amber-200",
+    ring: "ring-amber-200",
+  },
+  possible: {
+    badge: "bg-slate-100 text-slate-700 border-slate-200",
+    ring: "ring-slate-200",
+  },
+};
+
+function ScoreBar({ score }: { score: number }) {
+  const pct = Math.min(Math.max(score, 0), 100);
+  return (
+    <div className="h-2 w-full rounded-full bg-muted">
+      <div
+        className={cn(
+          "h-full rounded-full transition-all",
+          pct >= 70 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-slate-400"
+        )}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 export default function WorkupPage() {
-  const { encounterId, diagnosticOutput } = useEncounterContext();
+  const supabase = useMemo(() => createClient(), []);
+  const {
+    encounterId,
+    diagnosticOutput,
+    assessment,
+    updateAssessmentLocal,
+    updateEncounterLocal,
+  } = useEncounterContext();
   const router = useRouter();
   const [accepted, setAccepted] = useState<Record<string, boolean>>({});
+  const [includeWorkupSuggestions, setIncludeWorkupSuggestions] = useState(true);
+  const [workupNotes, setWorkupNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const workup = diagnosticOutput?.suggestedWorkup || [];
+  const redFlagResult = diagnosticOutput?.redFlagResult;
+  const phenotypes = diagnosticOutput?.phenotypes || [];
+
+  // Hydrate only when assessment.workup_data changes (e.g. initial load, server refetch).
+  // Guard: never overwrite non-empty local state with empty assessment - that indicates
+  // a race where our sync hasn't been reflected in the layout yet.
+  // Use functional setState and skip when unchanged to avoid sync/hydrate re-render loop.
+  useEffect(() => {
+    const data = (assessment?.workup_data || {}) as Record<string, unknown>;
+    const acceptedItems =
+      typeof data.accepted_workup_items === "object" && data.accepted_workup_items
+        ? (data.accepted_workup_items as Record<string, unknown>)
+        : {};
+    const acceptedMap = Object.fromEntries(
+      Object.entries(acceptedItems).map(([key, value]) => [key, value === true])
+    );
+    const workupNotesStr = (data.workup_notes as string) || "";
+    const includeSuggestions = data.include_workup_suggestions !== false;
+    setIncludeWorkupSuggestions(includeSuggestions);
+    const incomingHasItems = Object.values(acceptedMap).some(Boolean);
+    setAccepted((prev) => {
+      const currentHasItems = Object.values(prev).some(Boolean);
+      if (!incomingHasItems && currentHasItems) return prev;
+      const prevStr = JSON.stringify(Object.fromEntries(Object.entries(prev).sort(([a],[b]) => a.localeCompare(b))));
+      const nextStr = JSON.stringify(Object.fromEntries(Object.entries(acceptedMap).sort(([a],[b]) => a.localeCompare(b))));
+      if (prevStr === nextStr) return prev;
+      return acceptedMap;
+    });
+    setWorkupNotes(workupNotesStr);
+  }, [assessment?.workup_data]);
+
+  const persistWorkupData = useCallback(
+    async (data: {
+      workup_notes: string;
+      accepted_workup_items: Record<string, boolean>;
+      include_workup_suggestions: boolean;
+    }) => {
+      setSaving(true);
+      try {
+        const { error } = await supabase
+          .from("clinician_assessments")
+          .update({ workup_data: data })
+          .eq("encounter_id", encounterId);
+        if (error) throw error;
+        setLastSaved(new Date());
+        updateAssessmentLocal("workup_data", data);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [encounterId, supabase, updateAssessmentLocal]
+  );
+
+  useEffect(() => {
+    const payload = {
+      workup_notes: workupNotes,
+      accepted_workup_items: accepted,
+      include_workup_suggestions: includeWorkupSuggestions,
+    };
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      void persistWorkupData(payload);
+    }, 800);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [accepted, workupNotes, includeWorkupSuggestions, persistWorkupData]);
+
+  // Sync accepted/workupNotes to context so note page has latest data on nav.
+  // Debounce to avoid layout re-renders on every checkbox/keystroke.
+  useEffect(() => {
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      updateAssessmentLocal("workup_data", {
+        workup_notes: workupNotes,
+        accepted_workup_items: accepted,
+        include_workup_suggestions: includeWorkupSuggestions,
+      });
+      syncTimerRef.current = null;
+    }, 100);
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
+  }, [accepted, workupNotes, includeWorkupSuggestions, updateAssessmentLocal]);
+
+  const followUpDefaultValues = (assessment?.follow_up || {}) as Record<string, unknown>;
+
+  const handleFollowUpChange = useCallback(
+    (data: Record<string, unknown>) => {
+      updateAssessmentLocal("follow_up", data);
+    },
+    [updateAssessmentLocal]
+  );
 
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h2 className="text-xl font-bold">Suggested Work-up</h2>
+        <h2 className="text-xl font-bold">Plan & Follow-up</h2>
         <p className="text-sm text-muted-foreground">
-          Investigations and referrals suggested by the assessment and red-flag
-          findings. Accept or decline each item.
+          Review suggested work-up, control what appears in the clinic note, and
+          capture follow-up scheduling.
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {saving
+            ? "Saving..."
+            : lastSaved
+              ? `Saved ${lastSaved.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              : ""}
         </p>
       </div>
+
+      {redFlagResult &&
+        (redFlagResult.flagged ? (
+          <Alert variant="destructive">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle className="font-bold">Red Flags Identified</AlertTitle>
+            <AlertDescription className="mt-2 space-y-1">
+              {redFlagResult.flags.map((flag) => (
+                <div key={flag.code} className="flex items-start gap-2 text-sm">
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "mt-0.5 shrink-0 text-[10px] uppercase",
+                      flag.severity === "urgent"
+                        ? "bg-red-200 text-red-900"
+                        : "bg-orange-200 text-orange-900"
+                    )}
+                  >
+                    {flag.severity}
+                  </Badge>
+                  <span>{flag.description}</span>
+                </div>
+              ))}
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="border-emerald-200 bg-emerald-50 text-emerald-800 [&>svg]:text-emerald-600">
+            <ShieldCheck className="h-4 w-4" />
+            <AlertTitle className="font-semibold">No Red Flags</AlertTitle>
+            <AlertDescription className="text-sm">
+              No SNOOP4 red-flag warning signs were identified in this
+              assessment.
+            </AlertDescription>
+          </Alert>
+        ))}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Phenotype Ranking</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {phenotypes.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Insufficient data to rank phenotypes.
+            </p>
+          ) : (
+            phenotypes.map((phenotype, idx) => (
+              <div
+                key={phenotype.diagnosis}
+                className={cn(
+                  "rounded-lg border p-4 ring-1",
+                  CONFIDENCE_STYLES[phenotype.confidence].ring
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-bold">
+                      {idx + 1}
+                    </span>
+                    <h3 className="font-semibold">{phenotype.label}</h3>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "shrink-0 border capitalize",
+                      CONFIDENCE_STYLES[phenotype.confidence].badge
+                    )}
+                  >
+                    {phenotype.confidence}
+                  </Badge>
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <ScoreBar score={phenotype.score} />
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                    {phenotype.score}%
+                  </span>
+                </div>
+                {phenotype.rationale.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                      Supporting Criteria
+                    </p>
+                    <ul className="space-y-0.5 text-sm text-muted-foreground">
+                      {phenotype.rationale.map((r, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-emerald-400" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {phenotype.contradictions.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <XCircle className="h-3 w-3 text-rose-500" />
+                      Contradictions
+                    </p>
+                    <ul className="space-y-0.5 text-sm text-muted-foreground">
+                      {phenotype.contradictions.map((c, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                          {c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {phenotype.missingData.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <CircleHelp className="h-3 w-3 text-amber-500" />
+                      Missing Data
+                    </p>
+                    <ul className="space-y-0.5 text-sm text-muted-foreground">
+                      {phenotype.missingData.map((m, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-400" />
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       {workup.length === 0 ? (
         <Card>
@@ -36,6 +333,18 @@ export default function WorkupPage() {
             <CardTitle className="text-base">Recommended Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50">
+              <Checkbox
+                checked={includeWorkupSuggestions}
+                onCheckedChange={(checked) =>
+                  setIncludeWorkupSuggestions(checked === true)
+                }
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                Include automated work-up suggestions in clinic note
+              </span>
+            </label>
             {workup.map((item) => (
               <label
                 key={item}
@@ -58,8 +367,81 @@ export default function WorkupPage() {
         </Card>
       )}
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Plan Controls</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Work-up Notes</Label>
+            <Textarea
+              value={workupNotes}
+              onChange={(e) => setWorkupNotes(e.target.value)}
+              placeholder="Add custom work-up details, rationale, or instructions..."
+              className="min-h-[120px]"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Follow-up</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EncounterFormWrapper
+            encounterId={encounterId}
+            section="follow_up"
+            schema={followUpSchema}
+            defaultValues={followUpDefaultValues}
+            onDataChange={handleFollowUpChange}
+            onEncounterStatusChange={updateEncounterLocal}
+          >
+            {(form) => {
+              const v = form.watch();
+              const set = (name: string, value: unknown) =>
+                form.setValue(name as never, value as never, { shouldDirty: true });
+
+              return (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Follow-up Date</Label>
+                    <Input
+                      type="date"
+                      value={(v.follow_up_date as string) || ""}
+                      onChange={(e) => set("follow_up_date", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Follow-up Time</Label>
+                    <Input
+                      type="time"
+                      value={(v.follow_up_time as string) || ""}
+                      onChange={(e) => set("follow_up_time", e.target.value)}
+                    />
+                  </div>
+                </div>
+              );
+            }}
+          </EncounterFormWrapper>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
-        <Button onClick={() => router.push(`/encounters/${encounterId}/note`)}>
+        <Button
+          onClick={() => {
+            if (syncTimerRef.current) {
+              clearTimeout(syncTimerRef.current);
+              syncTimerRef.current = null;
+            }
+            updateAssessmentLocal("workup_data", {
+              workup_notes: workupNotes,
+              accepted_workup_items: accepted,
+              include_workup_suggestions: includeWorkupSuggestions,
+            });
+            router.push(`/encounters/${encounterId}/note`);
+          }}
+        >
           Proceed to Clinic Note
         </Button>
       </div>

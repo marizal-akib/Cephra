@@ -1,10 +1,16 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useEncounterContext } from "../layout";
-import { OutputScreen } from "@/components/encounters/output-screen";
 
 export default function OutputPage() {
   const { encounterId } = useEncounterContext();
+  const router = useRouter();
 
-  return <OutputScreen encounterId={encounterId} />;
+  useEffect(() => {
+    router.replace(`/encounters/${encounterId}/workup`);
+  }, [encounterId, router]);
+
+  return null;
 }

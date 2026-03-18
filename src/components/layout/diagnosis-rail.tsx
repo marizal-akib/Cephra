@@ -134,12 +134,12 @@ export function DiagnosisRailContent({ output }: DiagnosisRailContentProps) {
         </Card>
       )}
 
-      {/* Suggested Workup */}
+      {/* Suggested Plan Items */}
       {suggestedWorkup.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Suggested Work-up
+              Suggested Plan Items
             </CardTitle>
           </CardHeader>
           <CardContent>

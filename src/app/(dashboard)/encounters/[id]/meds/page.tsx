@@ -8,6 +8,7 @@ import { ToggleField } from "@/components/encounter/toggle-field";
 import { NumberField } from "@/components/encounter/number-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
@@ -107,6 +108,15 @@ export default function MedsPage() {
                   value={(v.preventive_response as string) || ""}
                   onChange={(e) => set("preventive_response", e.target.value)}
                   placeholder="e.g. Partial response, side effects"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Current Medications</Label>
+                <Textarea
+                  value={(v.current_medications_text as string) || ""}
+                  onChange={(e) => set("current_medications_text", e.target.value)}
+                  placeholder="List other current medications the patient is using..."
+                  className="min-h-[120px]"
                 />
               </div>
             </div>

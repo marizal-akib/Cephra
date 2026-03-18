@@ -31,10 +31,12 @@ import {
   Loader2,
   LogOut,
   Pencil,
+  Printer,
   RefreshCw,
   SquarePen,
 } from "lucide-react";
 import type { ClinicianAssessment } from "@/types";
+import { assessmentReference } from "@/lib/assessment";
 
 export default function NotePage() {
   const router = useRouter();
@@ -61,11 +63,15 @@ export default function NotePage() {
   const [noteContent, setNoteContent] = useState("");
   const [currentVersion, setCurrentVersion] = useState(1);
   const [editMode, setEditMode] = useState(false);
+  const [clinicianName, setClinicianName] = useState("");
+  const [clinicianCredentials, setClinicianCredentials] = useState("");
+  const [clinicianDesignation, setClinicianDesignation] = useState("");
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const noteIdRef = useRef<string | null>(null);
   const noteContentRef = useRef("");
   const lastPersistedRef = useRef("");
+  const generatedContentRef = useRef("");
 
   noteContentRef.current = noteContent;
 
@@ -86,6 +92,7 @@ export default function NotePage() {
     if (!assessment || !diagnosticOutput) return "";
     return generateNote({
       patientName,
+      patientId: encounter?.patient?.mrn || encounter?.patient?.id?.slice(0, 8).toUpperCase(),
       age: encounter?.patient?.date_of_birth
         ? Math.floor(
             (Date.now() - new Date(encounter.patient.date_of_birth).getTime()) /
@@ -93,10 +100,31 @@ export default function NotePage() {
           )
         : undefined,
       sex: encounter?.patient?.sex ?? undefined,
+      dateOfBirth: encounter?.patient?.date_of_birth ?? undefined,
       assessment: assessment as ClinicianAssessment,
       diagnosticOutput,
+      clinicianName,
+      clinicianCredentials,
+      clinicianDesignation,
+      consultationDate: encounter?.created_at,
+      assessmentReference: assessmentReference(encounterId),
     });
-  }, [assessment, diagnosticOutput, patientName, encounter?.patient?.date_of_birth, encounter?.patient?.sex]);
+  }, [
+    assessment,
+    diagnosticOutput,
+    patientName,
+    encounterId,
+    encounter?.patient?.date_of_birth,
+    encounter?.patient?.sex,
+    encounter?.patient?.mrn,
+    encounter?.patient?.id,
+    encounter?.created_at,
+    clinicianName,
+    clinicianCredentials,
+    clinicianDesignation,
+  ]);
+
+  generatedContentRef.current = generatedContent;
 
   const persistNote = useCallback(
     async (content: string) => {
@@ -159,14 +187,38 @@ export default function NotePage() {
         lastPersistedRef.current = data.content;
         setLastSaved(new Date(data.created_at));
       } else {
-        setNoteContent(generatedContent);
-        lastPersistedRef.current = generatedContent;
+        const content = generatedContentRef.current;
+        setNoteContent(content);
+        lastPersistedRef.current = content;
       }
       setLoadingDraft(false);
     };
     void loadDraft();
     return () => { cancelled = true; if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [diagnosticOutput, encounterId, generatedContent, supabase]);
+  }, [diagnosticOutput, encounterId, supabase]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const clinicianId = encounter?.clinician_id;
+    if (!clinicianId) return;
+
+    const loadClinicianProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, credentials, designation")
+        .eq("id", clinicianId)
+        .maybeSingle();
+      if (cancelled) return;
+      setClinicianName((data?.full_name as string) || "");
+      setClinicianCredentials((data?.credentials as string) || "");
+      setClinicianDesignation((data?.designation as string) || "");
+    };
+
+    void loadClinicianProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [encounter?.clinician_id, supabase]);
 
   useEffect(() => {
     if (loadingDraft || !diagnosticOutput) return;
@@ -175,6 +227,15 @@ export default function NotePage() {
     timerRef.current = setTimeout(() => { void persistNote(noteContentRef.current); }, 1500);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [diagnosticOutput, loadingDraft, noteContent, persistNote]);
+
+  // Auto-sync to new generated content when assessment changes (if no manual edits)
+  useEffect(() => {
+    if (loadingDraft) return;
+    if (hasManualEdits) return;
+    if (noteContent.trim() === generatedContent.trim()) return;
+    setNoteContent(generatedContent);
+    lastPersistedRef.current = generatedContent;
+  }, [generatedContent, hasManualEdits, loadingDraft]);
 
   function handleRegenerate() {
     if (
@@ -191,6 +252,10 @@ export default function NotePage() {
     setCopied(true);
     toast.success("Note copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function handlePrint() {
+    window.print();
   }
 
   async function saveAndExit() {
@@ -297,7 +362,7 @@ export default function NotePage() {
   return (
     <div className="max-w-3xl space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="no-print flex items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight">Clinic Note</h2>
@@ -328,7 +393,7 @@ export default function NotePage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-1.5">
+      <div className="no-print flex items-center gap-2 rounded-lg border bg-muted/40 p-1.5">
         {!isCompleted && (
           <>
             <div className="flex items-center rounded-md bg-background shadow-sm">
@@ -358,10 +423,14 @@ export default function NotePage() {
           {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
           {copied ? "Copied!" : "Copy"}
         </Button>
+        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={handlePrint}>
+          <Printer className="h-3 w-3" />
+          Print
+        </Button>
       </div>
 
       {!isCompleted && hasManualEdits && (
-        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+        <div className="no-print flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
           <Pencil className="h-3 w-3 shrink-0" />
           <span>You have made manual edits. Regenerating will overwrite them.</span>
         </div>
@@ -369,7 +438,7 @@ export default function NotePage() {
 
       {/* Note content */}
       {editMode ? (
-        <Card>
+        <Card className="print:block">
           <CardContent className="p-0">
             <Textarea
               disabled={loadingDraft}
@@ -381,8 +450,8 @@ export default function NotePage() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-6 space-y-6">
+        <Card className="print:block">
+          <CardContent className="p-6 space-y-6 print-note-content">
             {loadingDraft ? (
               <div className="flex items-center justify-center py-20"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             ) : noteSections.length > 0 ? (
@@ -392,8 +461,20 @@ export default function NotePage() {
                   {section.heading && (
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{section.heading}</h3>
                   )}
-                  <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-                    {section.body.split("\n").map((line, j) => {
+                  <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap print-note-section">
+                    {section.heading === "RED FLAG SUMMARY" ? (
+                      section.body.startsWith("No red flags") ? (
+                        <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 mb-3 text-emerald-800 print:border-emerald-300 print:bg-emerald-50/80">
+                          <CheckCircle2 className="h-4 w-4 shrink-0" /><span>{section.body}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 mb-3 text-red-800 print:border-red-300 print:bg-red-50/80">
+                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span className="font-medium">{section.body}</span>
+                        </div>
+                      )
+                    ) : (
+                    section.body.split("\n").map((line, j) => {
                       if (line.startsWith("RED FLAGS:")) {
                         return (
                           <div key={j} className="flex items-start gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 mb-3 text-red-800">
@@ -438,7 +519,8 @@ export default function NotePage() {
                       if (line.endsWith(":") && !line.includes(".")) return <p key={j} className="font-medium text-slate-700 mt-2 mb-1">{line}</p>;
                       if (line.trim() === "") return <div key={j} className="h-2" />;
                       return <p key={j} className="mb-1">{line}</p>;
-                    })}
+                    })
+                    )}
                   </div>
                 </div>
               ))
@@ -450,7 +532,7 @@ export default function NotePage() {
       )}
 
       {/* Footer actions */}
-      <div className="flex items-center justify-between border-t pt-4">
+      <div className="no-print flex items-center justify-between border-t pt-4">
         {isCompleted ? (
           <>
             <Button variant="outline" onClick={saveAndExit} disabled={busy}>

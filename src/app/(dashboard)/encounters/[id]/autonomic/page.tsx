@@ -40,18 +40,40 @@ export default function AutonomicPage() {
           const v = form.watch();
           const set = (name: string, value: unknown) =>
             form.setValue(name as never, value as never, { shouldDirty: true });
+          const autonomicNA = !!v.autonomic_features_na;
 
           return (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <ToggleField label="Lacrimation" description="Tearing of the eye" checked={!!v.lacrimation} onCheckedChange={(c) => set("lacrimation", c)} />
-              <ToggleField label="Conjunctival injection" description="Red eye" checked={!!v.conjunctival_injection} onCheckedChange={(c) => set("conjunctival_injection", c)} />
-              <ToggleField label="Rhinorrhoea" description="Runny nose" checked={!!v.rhinorrhoea} onCheckedChange={(c) => set("rhinorrhoea", c)} />
-              <ToggleField label="Nasal congestion" checked={!!v.nasal_congestion} onCheckedChange={(c) => set("nasal_congestion", c)} />
-              <ToggleField label="Ptosis" description="Drooping eyelid" checked={!!v.ptosis} onCheckedChange={(c) => set("ptosis", c)} />
-              <ToggleField label="Miosis" description="Constricted pupil" checked={!!v.miosis} onCheckedChange={(c) => set("miosis", c)} />
-              <ToggleField label="Eyelid oedema" checked={!!v.eyelid_oedema} onCheckedChange={(c) => set("eyelid_oedema", c)} />
-              <ToggleField label="Facial sweating" checked={!!v.facial_sweating} onCheckedChange={(c) => set("facial_sweating", c)} />
-              <ToggleField label="Ear fullness" checked={!!v.ear_fullness} onCheckedChange={(c) => set("ear_fullness", c)} />
+            <div className="space-y-4">
+              <ToggleField
+                label="Not applicable (N/A)"
+                description="Use when TAC/autonomic features are not applicable to this case."
+                checked={autonomicNA}
+                onCheckedChange={(checked) => {
+                  set("autonomic_features_na", checked);
+                  if (checked) {
+                    set("lacrimation", false);
+                    set("conjunctival_injection", false);
+                    set("rhinorrhoea", false);
+                    set("nasal_congestion", false);
+                    set("ptosis", false);
+                    set("miosis", false);
+                    set("eyelid_oedema", false);
+                    set("facial_sweating", false);
+                    set("ear_fullness", false);
+                  }
+                }}
+              />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <ToggleField label="Lacrimation" description="Tearing of the eye" checked={!!v.lacrimation} onCheckedChange={(c) => set("lacrimation", c)} disabled={autonomicNA} />
+                <ToggleField label="Conjunctival injection" description="Red eye" checked={!!v.conjunctival_injection} onCheckedChange={(c) => set("conjunctival_injection", c)} disabled={autonomicNA} />
+                <ToggleField label="Rhinorrhoea" description="Runny nose" checked={!!v.rhinorrhoea} onCheckedChange={(c) => set("rhinorrhoea", c)} disabled={autonomicNA} />
+                <ToggleField label="Nasal congestion" checked={!!v.nasal_congestion} onCheckedChange={(c) => set("nasal_congestion", c)} disabled={autonomicNA} />
+                <ToggleField label="Ptosis" description="Drooping eyelid" checked={!!v.ptosis} onCheckedChange={(c) => set("ptosis", c)} disabled={autonomicNA} />
+                <ToggleField label="Miosis" description="Constricted pupil" checked={!!v.miosis} onCheckedChange={(c) => set("miosis", c)} disabled={autonomicNA} />
+                <ToggleField label="Eyelid oedema" checked={!!v.eyelid_oedema} onCheckedChange={(c) => set("eyelid_oedema", c)} disabled={autonomicNA} />
+                <ToggleField label="Facial sweating" checked={!!v.facial_sweating} onCheckedChange={(c) => set("facial_sweating", c)} disabled={autonomicNA} />
+                <ToggleField label="Ear fullness" checked={!!v.ear_fullness} onCheckedChange={(c) => set("ear_fullness", c)} disabled={autonomicNA} />
+              </div>
             </div>
           );
         }}

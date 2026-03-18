@@ -9,6 +9,7 @@ interface ToggleFieldProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export function ToggleField({
@@ -17,17 +18,21 @@ export function ToggleField({
   checked,
   onCheckedChange,
   className,
+  disabled = false,
 }: ToggleFieldProps) {
   return (
     <label
       className={cn(
-        "flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors",
+        "flex items-start gap-3 rounded-lg border p-3 transition-colors",
         checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+        disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+        !disabled && "cursor-pointer",
         className
       )}
     >
       <Checkbox
         checked={checked}
+        disabled={disabled}
         onCheckedChange={(v) => onCheckedChange(v === true)}
         className="mt-0.5"
       />

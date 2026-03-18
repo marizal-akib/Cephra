@@ -44,13 +44,13 @@ export default function IntakePage() {
         </div>
         {isInProgress ? (
           <Button asChild className="shrink-0">
-            <Link href={`/encounters/${encounterId}/${encounter.current_step || "pattern"}`}>
+            <Link href={`/encounters/${encounterId}/${encounter.current_step || "past-medical-history"}`}>
               Continue Assessment
             </Link>
           </Button>
         ) : (
           <Button asChild className="shrink-0">
-            <Link href={`/encounters/${encounterId}/red-flags`}>
+            <Link href={`/encounters/${encounterId}/past-medical-history`}>
               Start Assessment
             </Link>
           </Button>

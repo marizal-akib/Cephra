@@ -6,6 +6,8 @@ import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrap
 import { triggersSchema } from "@/lib/schemas/triggers";
 import { ToggleField } from "@/components/encounter/toggle-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { AlertTriangle } from "lucide-react";
 
 export default function TriggersPage() {
@@ -83,6 +85,15 @@ export default function TriggersPage() {
                   <ToggleField label="Worse upright" description="Suggests low CSF pressure" checked={!!v.positional_worse_upright} onCheckedChange={(c) => set("positional_worse_upright", c)} />
                   <ToggleField label="Worse supine" description="Suggests raised ICP" checked={!!v.positional_worse_supine} onCheckedChange={(c) => set("positional_worse_supine", c)} />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Triggers / Positional Notes</Label>
+                <Textarea
+                  value={(v.triggers_notes as string) || ""}
+                  onChange={(e) => set("triggers_notes", e.target.value)}
+                  placeholder="Add custom trigger descriptions and positional notes..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           );

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/utils";
 
 type InvitePayload = {
   email?: string;
@@ -57,10 +58,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email is required." }, { status: 400 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
   const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${appUrl}/callback`,
+    redirectTo: `${getAppUrl()}/callback`,
     data: {
       full_name: fullName,
     },

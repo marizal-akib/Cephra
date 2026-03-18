@@ -57,6 +57,8 @@ export default function PainPage() {
                   <ToggleField label="Supraorbital" checked={!!v.supraorbital} onCheckedChange={(c) => set("supraorbital", c)} />
                   <ToggleField label="Occipital" checked={!!v.occipital} onCheckedChange={(c) => set("occipital", c)} />
                   <ToggleField label="Neck-predominant" checked={!!v.neck_predominant} onCheckedChange={(c) => set("neck_predominant", c)} />
+                  <ToggleField label="Generalized" checked={!!v.generalized} onCheckedChange={(c) => set("generalized", c)} />
+                  <ToggleField label="Unable to characterize" checked={!!v.unable_to_characterize} onCheckedChange={(c) => set("unable_to_characterize", c)} />
                 </div>
               </div>
 

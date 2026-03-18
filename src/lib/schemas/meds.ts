@@ -12,6 +12,7 @@ export const medsSchema = z.object({
   response_to_indomethacin: z.boolean().optional(),
   current_preventive: z.string().optional(),
   preventive_response: z.string().optional(),
+  current_medications_text: z.string().optional(),
 });
 
 export type MedsFormData = z.infer<typeof medsSchema>;

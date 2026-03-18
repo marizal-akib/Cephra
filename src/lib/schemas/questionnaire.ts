@@ -10,6 +10,7 @@ export interface QuestionDef {
 
 export const QUESTION_GROUPS = [
   { key: "basics", label: "About You" },
+  { key: "medical_history", label: "Medical History" },
   { key: "burden", label: "Headache Burden" },
   { key: "symptoms", label: "Symptoms" },
   { key: "warnings", label: "Warning Signs" },
@@ -42,6 +43,37 @@ export const QUESTIONS: QuestionDef[] = [
       { value: "postpartum", label: "Gave birth in last 6 weeks" },
       { value: "no", label: "No" },
     ],
+    required: false,
+  },
+
+  // Medical History
+  {
+    id: "past_medical_history_common",
+    group: "medical_history",
+    type: "multiselect",
+    label: "Please select any past medical conditions you have:",
+    options: [
+      { value: "hypertension", label: "Hypertension" },
+      { value: "diabetes", label: "Diabetes" },
+      { value: "thyroid_disorder", label: "Thyroid disorder" },
+      { value: "asthma_copd", label: "Asthma/COPD" },
+      { value: "heart_disease", label: "Heart disease" },
+      { value: "stroke_tia", label: "Stroke/TIA" },
+      {
+        value: "epilepsy_seizure_disorder",
+        label: "Epilepsy/seizure disorder",
+      },
+      { value: "anxiety_depression", label: "Anxiety/depression" },
+    ],
+    required: false,
+  },
+  {
+    id: "past_medical_history_notes",
+    group: "medical_history",
+    type: "text",
+    label: "Any other medical conditions not listed above?",
+    helpText:
+      "e.g. high blood pressure, diabetes, thyroid problems, asthma, etc.",
     required: false,
   },
 

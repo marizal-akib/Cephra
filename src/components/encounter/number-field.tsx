@@ -11,6 +11,7 @@ interface NumberFieldProps {
   min?: number;
   max?: number;
   unit?: string;
+  disabled?: boolean;
 }
 
 export function NumberField({
@@ -21,6 +22,7 @@ export function NumberField({
   min,
   max,
   unit,
+  disabled = false,
 }: NumberFieldProps) {
   return (
     <div className="space-y-1.5">
@@ -32,6 +34,7 @@ export function NumberField({
         <Input
           type="number"
           value={value ?? ""}
+          disabled={disabled}
           onChange={(e) => {
             const val = e.target.value;
             onChange(val === "" ? undefined : Number(val));

@@ -11,6 +11,7 @@ export const triggersSchema = z.object({
   valsalva: z.boolean().optional(),
   positional_worse_upright: z.boolean().optional(),
   positional_worse_supine: z.boolean().optional(),
+  triggers_notes: z.string().optional(),
 });
 
 export type TriggersFormData = z.infer<typeof triggersSchema>;

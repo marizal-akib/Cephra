@@ -11,6 +11,8 @@ export const painSchema = z.object({
   supraorbital: z.boolean().optional(),
   occipital: z.boolean().optional(),
   neck_predominant: z.boolean().optional(),
+  generalized: z.boolean().optional(),
+  unable_to_characterize: z.boolean().optional(),
   pulsating: z.boolean().optional(),
   pressing: z.boolean().optional(),
   tightening: z.boolean().optional(),

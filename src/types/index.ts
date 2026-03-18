@@ -5,6 +5,7 @@ export interface Profile {
   full_name: string;
   credentials: string | null;
   specialty: string | null;
+  designation: string | null;
   role: "admin" | "doctor";
   created_at: string;
   updated_at: string;
@@ -58,6 +59,7 @@ export interface QuestionnaireResponse {
 export interface ClinicianAssessment {
   id: string;
   encounter_id: string;
+  past_medical_history: Record<string, unknown>;
   red_flags: Record<string, unknown>;
   pattern: Record<string, unknown>;
   pain: Record<string, unknown>;
@@ -66,6 +68,9 @@ export interface ClinicianAssessment {
   autonomic: Record<string, unknown>;
   triggers: Record<string, unknown>;
   medications: Record<string, unknown>;
+  clinical_examination: Record<string, unknown>;
+  workup_data: Record<string, unknown>;
+  follow_up: Record<string, unknown>;
   clinician_notes: string | null;
   created_at: string;
   updated_at: string;
@@ -97,6 +102,11 @@ export interface GeneratedNote {
 // Encounter steps for navigation
 export const ENCOUNTER_STEPS = [
   { key: "intake", label: "Intake Summary", path: "intake" },
+  {
+    key: "past-medical-history",
+    label: "Past Medical History",
+    path: "past-medical-history",
+  },
   { key: "red-flags", label: "Red Flags", path: "red-flags" },
   { key: "pattern", label: "Pattern", path: "pattern" },
   { key: "pain", label: "Pain", path: "pain" },
@@ -105,8 +115,12 @@ export const ENCOUNTER_STEPS = [
   { key: "autonomic", label: "Autonomic", path: "autonomic" },
   { key: "triggers", label: "Triggers", path: "triggers" },
   { key: "meds", label: "Medications", path: "meds" },
-  { key: "output", label: "Phenotype Output", path: "output" },
-  { key: "workup", label: "Work-up", path: "workup" },
+  {
+    key: "clinical-examination",
+    label: "Clinical Examination",
+    path: "clinical-examination",
+  },
+  { key: "workup", label: "Plan & Follow-up", path: "workup" },
   { key: "note", label: "Clinic Note", path: "note" },
 ] as const;
 
@@ -114,6 +128,7 @@ export type EncounterStepKey = (typeof ENCOUNTER_STEPS)[number]["key"];
 
 // Assessment section keys (the form sections in clinician_assessments)
 export type AssessmentSection =
+  | "past_medical_history"
   | "red_flags"
   | "pattern"
   | "pain"
@@ -121,10 +136,13 @@ export type AssessmentSection =
   | "aura"
   | "autonomic"
   | "triggers"
-  | "medications";
+  | "medications"
+  | "clinical_examination"
+  | "follow_up";
 
 // Maps assessment section keys to encounter step path keys
 export const SECTION_TO_STEP: Record<AssessmentSection, string> = {
+  past_medical_history: "past-medical-history",
   red_flags: "red-flags",
   pattern: "pattern",
   pain: "pain",
@@ -133,4 +151,6 @@ export const SECTION_TO_STEP: Record<AssessmentSection, string> = {
   autonomic: "autonomic",
   triggers: "triggers",
   medications: "meds",
+  clinical_examination: "clinical-examination",
+  follow_up: "workup",
 };

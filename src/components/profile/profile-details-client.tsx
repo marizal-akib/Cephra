@@ -19,6 +19,8 @@ type ProfileDetailsClientProps = {
   lastSignInAt: string | null;
   initialName: string;
   initialAvatarUrl: string | null;
+  initialCredentials: string | null;
+  initialDesignation: string | null;
 };
 
 export function ProfileDetailsClient({
@@ -28,10 +30,14 @@ export function ProfileDetailsClient({
   lastSignInAt,
   initialName,
   initialAvatarUrl,
+  initialCredentials,
+  initialDesignation,
 }: ProfileDetailsClientProps) {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(initialName);
+  const [credentials, setCredentials] = useState(initialCredentials ?? "");
+  const [designation, setDesignation] = useState(initialDesignation ?? "");
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -115,7 +121,15 @@ export function ProfileDetailsClient({
     setProfileSaving(true);
     const { error: profileError } = await supabase
       .from("profiles")
-      .upsert({ id: userId, full_name: trimmedName }, { onConflict: "id" });
+      .upsert(
+        {
+          id: userId,
+          full_name: trimmedName,
+          credentials: credentials.trim() || null,
+          designation: designation.trim() || null,
+        },
+        { onConflict: "id" }
+      );
 
     if (profileError) {
       setProfileSaving(false);
@@ -198,6 +212,14 @@ export function ProfileDetailsClient({
               <p>{name}</p>
             </div>
             <div className="grid grid-cols-[140px_1fr] gap-2">
+              <p className="text-muted-foreground">Credentials</p>
+              <p>{credentials || "Not provided"}</p>
+            </div>
+            <div className="grid grid-cols-[140px_1fr] gap-2">
+              <p className="text-muted-foreground">Designation</p>
+              <p>{designation || "Not provided"}</p>
+            </div>
+            <div className="grid grid-cols-[140px_1fr] gap-2">
               <p className="text-muted-foreground">Email</p>
               <p>{email || "Not available"}</p>
             </div>
@@ -274,6 +296,22 @@ export function ProfileDetailsClient({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm text-muted-foreground">Credentials</label>
+                <Input
+                  value={credentials}
+                  onChange={(e) => setCredentials(e.target.value)}
+                  placeholder="e.g. MBBS, MD, DM Neurology"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm text-muted-foreground">Designation</label>
+                <Input
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  placeholder="e.g. Consultant Neurologist"
                 />
               </div>
               <div className="flex items-center gap-3">

@@ -416,7 +416,7 @@ export function AssessmentWorkflowList({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <Link href={`/encounters/${encounter.id}/pattern`}>
+            <Link href={`/encounters/${encounter.id}/past-medical-history`}>
               <Play className="h-3.5 w-3.5" />
               Start Assessment
             </Link>

@@ -1,6 +1,7 @@
 import { z } from "zod/v4";
 
 export const autonomicSchema = z.object({
+  autonomic_features_na: z.boolean().optional(),
   lacrimation: z.boolean().optional(),
   conjunctival_injection: z.boolean().optional(),
   rhinorrhoea: z.boolean().optional(),

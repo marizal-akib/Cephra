@@ -290,3 +290,46 @@ h3 {
     animation: none;
   }
 }
+
+@media print {
+  nav,
+  aside,
+  header,
+  footer,
+  button,
+  .sheet-content,
+  .sheet-overlay,
+  .diagnosis-rail,
+  [role="dialog"],
+  .no-print {
+    display: none !important;
+  }
+
+  main,
+  section,
+  article,
+  .max-w-3xl {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .border,
+  .rounded-lg,
+  .shadow-sm {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .print-note-section {
+    page-break-inside: avoid;
+  }
+
+  .print-note-content {
+    padding: 0 !important;
+  }
+}

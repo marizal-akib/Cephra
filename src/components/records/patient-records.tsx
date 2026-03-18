@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Calendar,
@@ -9,11 +10,14 @@ import {
   ExternalLink,
   FileText,
   Hash,
+  Loader2,
   Plus,
   Search,
   SearchX,
+  Trash2,
   User,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +30,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -286,6 +298,10 @@ function PatientFile({
   clinicianName: string;
   onBack: () => void;
 }) {
+  const router = useRouter();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const first = firstEncounterDate(patient);
   const latest = latestEncounterDate(patient);
   const notes = allNotes(patient);
@@ -294,6 +310,28 @@ function PatientFile({
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
   const latestEncounter = sortedEncounters[0] ?? null;
+
+  async function confirmDelete() {
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/patients/${patient.id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        toast.error(data.error || "Unable to delete patient record.");
+        return;
+      }
+      toast.success("Patient record deleted.");
+      setShowDeleteDialog(false);
+      onBack();
+      router.refresh();
+    } catch {
+      toast.error("Unable to delete patient record.");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -379,7 +417,55 @@ function PatientFile({
             View Previous Notes
           </Button>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => setShowDeleteDialog(true)}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Patient
+        </Button>
       </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Patient Record</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the record for{" "}
+              <span className="font-medium text-foreground">
+                {patientName(patient)}
+              </span>
+              ? This action cannot be undone. All assessments, notes, and
+              associated data for this patient will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void confirmDelete()}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Patient"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Section C — Patient History */}
       <Card>
