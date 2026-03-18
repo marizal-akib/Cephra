@@ -25,6 +25,21 @@ export type RecordPatient = {
       version: number;
       created_at: string;
     }[];
+    clinician_assessments: {
+      id: string;
+      pattern: Record<string, unknown> | null;
+      pain: Record<string, unknown> | null;
+      symptoms: Record<string, unknown> | null;
+      medications: Record<string, unknown> | null;
+      red_flags: Record<string, unknown> | null;
+      clinical_examination: Record<string, unknown> | null;
+    }[];
+    diagnostic_runs: {
+      id: string;
+      phenotype_ranking: unknown[] | null;
+      red_flag_result: { flagged?: boolean; flags?: { description: string }[] } | null;
+      created_at: string;
+    }[];
   }[];
 };
 
@@ -35,7 +50,7 @@ export default async function PatientRecordsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: patientsData } = await supabase
+  const { data: patientsData, error: patientsError } = await supabase
     .from("patients")
     .select(
       `
@@ -53,12 +68,18 @@ export default async function PatientRecordsPage() {
           created_at,
           updated_at,
           questionnaire_tokens(used_at),
-          generated_notes(id, content, version, created_at)
+          generated_notes(id, content, version, created_at),
+          clinician_assessments(id, pattern, pain, symptoms, medications, red_flags, clinical_examination),
+          diagnostic_runs(id, phenotype_ranking, red_flag_result, created_at)
         )
       `
     )
     .order("created_at", { ascending: false })
     .limit(200);
+
+  if (patientsError) {
+    console.error("Patient records query failed:", patientsError.message);
+  }
 
   const patients = (patientsData ?? []) as RecordPatient[];
 

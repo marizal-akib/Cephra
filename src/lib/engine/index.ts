@@ -8,6 +8,10 @@ import { tensionType } from "./rules/tension-type";
 import { cluster } from "./rules/cluster";
 import { medicationOveruse } from "./rules/medication-overuse";
 import { chronicMigraine } from "./rules/chronic-migraine";
+import { paroxysmalHemicrania } from "./rules/paroxysmal-hemicrania";
+import { hemicraniaContinua } from "./rules/hemicrania-continua";
+import { sunct } from "./rules/sunct";
+import { suna } from "./rules/suna";
 
 const ALL_RULE_SETS = [
   migraineWithoutAura,
@@ -16,6 +20,10 @@ const ALL_RULE_SETS = [
   cluster,
   medicationOveruse,
   chronicMigraine,
+  paroxysmalHemicrania,
+  hemicraniaContinua,
+  sunct,
+  suna,
 ];
 
 export function runDiagnosticEngine(
@@ -34,7 +42,7 @@ export function runDiagnosticEngine(
     redFlagResult,
     phenotypes,
     suggestedWorkup,
-    engineVersion: "1.0.0",
+    engineVersion: "1.1.0",
   };
 }
 

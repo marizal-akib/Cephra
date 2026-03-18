@@ -4,17 +4,24 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Activity,
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Calendar,
   ClipboardList,
   ExternalLink,
   FileText,
+  GitCompareArrows,
   Hash,
   Loader2,
+  Minus,
   Plus,
   Search,
   SearchX,
   Trash2,
+  TrendingDown,
+  TrendingUp,
   User,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -497,7 +504,15 @@ function PatientFile({
             Assessments ({patient.encounters.length})
           </TabsTrigger>
           <TabsTrigger value="notes">
-            Previous Notes ({notes.length})
+            Notes ({notes.length})
+          </TabsTrigger>
+          <TabsTrigger value="diary">
+            <Activity className="mr-1 h-3.5 w-3.5" />
+            Diary
+          </TabsTrigger>
+          <TabsTrigger value="comparison">
+            <GitCompareArrows className="mr-1 h-3.5 w-3.5" />
+            Compare
           </TabsTrigger>
         </TabsList>
 
@@ -635,7 +650,428 @@ function PatientFile({
             )}
           </div>
         </TabsContent>
+
+        {/* Section F — Headache Diary */}
+        <TabsContent value="diary">
+          <HeadacheDiary encounters={sortedEncounters} />
+        </TabsContent>
+
+        {/* Section G — Visit Comparison */}
+        <TabsContent value="comparison">
+          <VisitComparison encounters={sortedEncounters} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+// --- Headache Diary ---------------------------------------------------------
+
+type DiaryEncounter = RecordPatient["encounters"][number];
+
+function getAssessment(enc: DiaryEncounter) {
+  return enc.clinician_assessments?.[0] ?? null;
+}
+
+function getDiagRun(enc: DiaryEncounter) {
+  return enc.diagnostic_runs?.[0] ?? null;
+}
+
+function numVal(obj: Record<string, unknown> | null, key: string): number | null {
+  if (!obj) return null;
+  const v = obj[key];
+  return typeof v === "number" ? v : null;
+}
+
+function boolList(obj: Record<string, unknown> | null, keys: { key: string; label: string }[]): string[] {
+  if (!obj) return [];
+  return keys.filter(({ key }) => obj[key] === true).map(({ label }) => label);
+}
+
+const SYMPTOM_KEYS = [
+  { key: "nausea", label: "Nausea" },
+  { key: "vomiting", label: "Vomiting" },
+  { key: "photophobia", label: "Photophobia" },
+  { key: "phonophobia", label: "Phonophobia" },
+  { key: "osmophobia", label: "Osmophobia" },
+  { key: "dizziness", label: "Dizziness" },
+  { key: "neck_pain", label: "Neck pain" },
+];
+
+function TrendArrow({ current, previous, lowerIsBetter = true }: { current: number | null; previous: number | null; lowerIsBetter?: boolean }) {
+  if (current === null || previous === null) return null;
+  if (current === previous) return <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
+  const improved = lowerIsBetter ? current < previous : current > previous;
+  return improved
+    ? <TrendingDown className="h-3.5 w-3.5 text-emerald-600" />
+    : <TrendingUp className="h-3.5 w-3.5 text-red-500" />;
+}
+
+function HeadacheDiary({ encounters }: { encounters: DiaryEncounter[] }) {
+  // Sort chronologically (oldest first) for timeline
+  const chrono = useMemo(
+    () => [...encounters].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [encounters]
+  );
+
+  if (chrono.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <p className="text-center text-sm text-muted-foreground">
+            No assessment data to display. Start an assessment to begin tracking.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const latest = chrono[chrono.length - 1];
+  const latestAssessment = getAssessment(latest);
+  const latestDays = numVal(latestAssessment?.pattern ?? null, "headache_days_per_month");
+  const latestSeverity = numVal(latestAssessment?.pain ?? null, "peak_intensity");
+
+  return (
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatBlock label="Total Visits" value={String(chrono.length)} />
+        <StatBlock
+          label="Date Range"
+          value={chrono.length >= 2
+            ? `${formatDate(chrono[0].created_at)} – ${formatDate(chrono[chrono.length - 1].created_at)}`
+            : formatDate(chrono[0].created_at)}
+        />
+        <StatBlock label="Latest HA Days/Mo" value={latestDays !== null ? String(latestDays) : "—"} />
+        <StatBlock label="Latest Severity" value={latestSeverity !== null ? `${latestSeverity}/10` : "—"} />
+      </div>
+
+      {/* Timeline cards (newest first for display) */}
+      <div className="relative space-y-3">
+        {[...chrono].reverse().map((enc, idx) => {
+          const reverseIdx = chrono.length - 1 - idx;
+          const prev = reverseIdx > 0 ? chrono[reverseIdx - 1] : null;
+          const assessment = getAssessment(enc);
+          const prevAssessment = prev ? getAssessment(prev) : null;
+          const diagRun = getDiagRun(enc);
+
+          const days = numVal(assessment?.pattern ?? null, "headache_days_per_month");
+          const prevDays = numVal(prevAssessment?.pattern ?? null, "headache_days_per_month");
+          const severity = numVal(assessment?.pain ?? null, "peak_intensity");
+          const prevSeverity = numVal(prevAssessment?.pain ?? null, "peak_intensity");
+          const duration = numVal(assessment?.pattern ?? null, "duration_hours") ?? numVal(assessment?.pattern ?? null, "duration_minutes");
+          const symptoms = boolList(assessment?.symptoms ?? null, SYMPTOM_KEYS);
+          const medDays = (() => {
+            const meds = assessment?.medications ?? null;
+            if (!meds) return null;
+            const t = numVal(meds, "triptan_days_per_month") ?? 0;
+            const n = numVal(meds, "nsaid_days_per_month") ?? 0;
+            const p = numVal(meds, "paracetamol_days_per_month") ?? 0;
+            const o = numVal(meds, "opioid_days_per_month") ?? 0;
+            const total = t + n + p + o;
+            return total > 0 ? total : null;
+          })();
+          const redFlagged = diagRun?.red_flag_result?.flagged === true;
+          const topDiagnosis = (() => {
+            const ranking = diagRun?.phenotype_ranking;
+            if (!Array.isArray(ranking) || ranking.length === 0) return null;
+            const top = ranking[0] as { label?: string; confidence?: string } | null;
+            return top?.label ? `${top.label}${top.confidence ? ` (${top.confidence})` : ""}` : null;
+          })();
+
+          return (
+            <Card key={enc.id} className={cn(redFlagged && "border-red-200")}>
+              <CardContent className="pt-5">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{formatDate(enc.created_at)}</span>
+                    <Badge variant="outline" className="text-xs font-mono">{assessmentRef(enc.id)}</Badge>
+                    {redFlagged && (
+                      <Badge className="border-red-200 bg-red-50 text-red-700 text-xs">Red Flagged</Badge>
+                    )}
+                  </div>
+                  <Link href={`/encounters/${enc.id}/intake`}>
+                    <Button size="xs" variant="ghost">Open</Button>
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">HA days/mo:</span>
+                    <span className="font-medium">{days ?? "—"}</span>
+                    <TrendArrow current={days} previous={prevDays} />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">Severity:</span>
+                    <span className="font-medium">{severity !== null ? `${severity}/10` : "—"}</span>
+                    <TrendArrow current={severity} previous={prevSeverity} />
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Duration: </span>
+                    <span className="font-medium">{duration !== null ? `${duration}h` : "—"}</span>
+                  </div>
+                  {medDays !== null && (
+                    <div>
+                      <span className="text-muted-foreground">Med days/mo: </span>
+                      <span className="font-medium">{medDays}</span>
+                    </div>
+                  )}
+                </div>
+
+                {symptoms.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {symptoms.map((s) => (
+                      <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+                    ))}
+                  </div>
+                )}
+
+                {topDiagnosis && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Impression: <span className="font-medium text-foreground">{topDiagnosis}</span>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// --- Visit Comparison -------------------------------------------------------
+
+function VisitComparison({ encounters }: { encounters: DiaryEncounter[] }) {
+  const chrono = useMemo(
+    () => [...encounters].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [encounters]
+  );
+
+  const [leftId, setLeftId] = useState<string>(chrono.length >= 2 ? chrono[chrono.length - 2].id : "");
+  const [rightId, setRightId] = useState<string>(chrono.length >= 1 ? chrono[chrono.length - 1].id : "");
+
+  if (chrono.length < 2) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <p className="text-center text-sm text-muted-foreground">
+            At least two visits are needed for comparison. This patient has {chrono.length} assessment{chrono.length !== 1 ? "s" : ""}.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const left = chrono.find((e) => e.id === leftId);
+  const right = chrono.find((e) => e.id === rightId);
+  const leftA = left ? getAssessment(left) : null;
+  const rightA = right ? getAssessment(right) : null;
+  const leftDiag = left ? getDiagRun(left) : null;
+  const rightDiag = right ? getDiagRun(right) : null;
+
+  function CompareRow({ label, leftVal, rightVal, lowerIsBetter }: {
+    label: string;
+    leftVal: string | null;
+    rightVal: string | null;
+    lowerIsBetter?: boolean;
+  }) {
+    const lNum = leftVal !== null && leftVal !== "—" ? parseFloat(leftVal) : null;
+    const rNum = rightVal !== null && rightVal !== "—" ? parseFloat(rightVal) : null;
+
+    let changeIcon = null;
+    if (lNum !== null && rNum !== null && !isNaN(lNum) && !isNaN(rNum)) {
+      if (rNum < lNum) changeIcon = <ArrowDown className={cn("h-3.5 w-3.5", lowerIsBetter !== false ? "text-emerald-600" : "text-red-500")} />;
+      else if (rNum > lNum) changeIcon = <ArrowUp className={cn("h-3.5 w-3.5", lowerIsBetter !== false ? "text-red-500" : "text-emerald-600")} />;
+      else changeIcon = <Minus className="h-3.5 w-3.5 text-muted-foreground" />;
+    }
+
+    return (
+      <TableRow>
+        <TableCell className="text-sm font-medium">{label}</TableCell>
+        <TableCell className="text-sm">{leftVal ?? "—"}</TableCell>
+        <TableCell className="text-sm">{rightVal ?? "—"}</TableCell>
+        <TableCell className="w-10">{changeIcon}</TableCell>
+      </TableRow>
+    );
+  }
+
+  const leftSymptoms = boolList(leftA?.symptoms ?? null, SYMPTOM_KEYS);
+  const rightSymptoms = boolList(rightA?.symptoms ?? null, SYMPTOM_KEYS);
+  const allSymptoms = [...new Set([...leftSymptoms, ...rightSymptoms])];
+
+  const leftTopDiag = (() => {
+    const r = leftDiag?.phenotype_ranking;
+    if (!Array.isArray(r) || r.length === 0) return null;
+    const top = r[0] as { label?: string; confidence?: string } | null;
+    return top?.label ?? null;
+  })();
+  const rightTopDiag = (() => {
+    const r = rightDiag?.phenotype_ranking;
+    if (!Array.isArray(r) || r.length === 0) return null;
+    const top = r[0] as { label?: string; confidence?: string } | null;
+    return top?.label ?? null;
+  })();
+
+  return (
+    <div className="space-y-4">
+      {/* Visit selectors */}
+      <Card>
+        <CardContent className="pt-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-6">
+            <div className="flex-1 space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Earlier Visit</label>
+              <select
+                value={leftId}
+                onChange={(e) => setLeftId(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                {chrono.map((enc) => (
+                  <option key={enc.id} value={enc.id}>
+                    {formatDate(enc.created_at)} — {assessmentRef(enc.id)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-center">
+              <GitCompareArrows className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Later Visit</label>
+              <select
+                value={rightId}
+                onChange={(e) => setRightId(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                {chrono.map((enc) => (
+                  <option key={enc.id} value={enc.id}>
+                    {formatDate(enc.created_at)} — {assessmentRef(enc.id)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {left && right && (
+        <Card>
+          <CardContent className="pt-5">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-48">Metric</TableHead>
+                  <TableHead>{formatDate(left.created_at)}</TableHead>
+                  <TableHead>{formatDate(right.created_at)}</TableHead>
+                  <TableHead className="w-10">Δ</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Pattern */}
+                <CompareRow
+                  label="Headache days/mo"
+                  leftVal={String(numVal(leftA?.pattern ?? null, "headache_days_per_month") ?? "—")}
+                  rightVal={String(numVal(rightA?.pattern ?? null, "headache_days_per_month") ?? "—")}
+                />
+                <CompareRow
+                  label="Severe days/mo"
+                  leftVal={String(numVal(leftA?.pattern ?? null, "severe_days_per_month") ?? "—")}
+                  rightVal={String(numVal(rightA?.pattern ?? null, "severe_days_per_month") ?? "—")}
+                />
+                <CompareRow
+                  label="Duration (hours)"
+                  leftVal={String(numVal(leftA?.pattern ?? null, "duration_hours") ?? "—")}
+                  rightVal={String(numVal(rightA?.pattern ?? null, "duration_hours") ?? "—")}
+                />
+
+                {/* Pain */}
+                <CompareRow
+                  label="Peak severity (0-10)"
+                  leftVal={String(numVal(leftA?.pain ?? null, "peak_intensity") ?? "—")}
+                  rightVal={String(numVal(rightA?.pain ?? null, "peak_intensity") ?? "—")}
+                />
+
+                {/* Medications */}
+                <CompareRow
+                  label="Triptan days/mo"
+                  leftVal={String(numVal(leftA?.medications ?? null, "triptan_days_per_month") ?? "—")}
+                  rightVal={String(numVal(rightA?.medications ?? null, "triptan_days_per_month") ?? "—")}
+                />
+                <CompareRow
+                  label="NSAID days/mo"
+                  leftVal={String(numVal(leftA?.medications ?? null, "nsaid_days_per_month") ?? "—")}
+                  rightVal={String(numVal(rightA?.medications ?? null, "nsaid_days_per_month") ?? "—")}
+                />
+
+                {/* Symptoms comparison */}
+                {allSymptoms.length > 0 && allSymptoms.map((s) => (
+                  <TableRow key={s}>
+                    <TableCell className="text-sm font-medium">{s}</TableCell>
+                    <TableCell className="text-sm">
+                      {leftSymptoms.includes(s) ? (
+                        <Badge variant="secondary" className="text-xs bg-amber-50 text-amber-700">Present</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">Absent</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {rightSymptoms.includes(s) ? (
+                        <Badge variant="secondary" className="text-xs bg-amber-50 text-amber-700">Present</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">Absent</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="w-10">
+                      {leftSymptoms.includes(s) && !rightSymptoms.includes(s) && (
+                        <ArrowDown className="h-3.5 w-3.5 text-emerald-600" />
+                      )}
+                      {!leftSymptoms.includes(s) && rightSymptoms.includes(s) && (
+                        <ArrowUp className="h-3.5 w-3.5 text-red-500" />
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                {/* Red flags */}
+                <TableRow>
+                  <TableCell className="text-sm font-medium">Red Flags</TableCell>
+                  <TableCell className="text-sm">
+                    {leftDiag?.red_flag_result?.flagged ? (
+                      <Badge className="border-red-200 bg-red-50 text-red-700 text-xs">Flagged</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">None</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {rightDiag?.red_flag_result?.flagged ? (
+                      <Badge className="border-red-200 bg-red-50 text-red-700 text-xs">Flagged</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">None</span>
+                    )}
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
+
+                {/* Top diagnosis */}
+                <TableRow>
+                  <TableCell className="text-sm font-medium">Top Diagnosis</TableCell>
+                  <TableCell className="text-sm">{leftTopDiag ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{rightTopDiag ?? "—"}</TableCell>
+                  <TableCell />
+                </TableRow>
+
+                {/* GCS from clinical exam */}
+                <CompareRow
+                  label="GCS Total"
+                  leftVal={String(numVal(leftA?.clinical_examination ?? null, "gcs_total") ?? "—")}
+                  rightVal={String(numVal(rightA?.clinical_examination ?? null, "gcs_total") ?? "—")}
+                  lowerIsBetter={false}
+                />
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

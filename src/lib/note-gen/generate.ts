@@ -313,45 +313,83 @@ function generateMedicationSection(ctx: NoteContext): string {
 }
 
 function generateClinicalExaminationSection(ctx: NoteContext): string {
-  const examination = (ctx.assessment.clinical_examination ||
-    {}) as Record<string, unknown>;
-  const examItems = [
-    { key: "general_status", noteKey: "general_status_note", label: "General status", normalValues: ["well"], display: { well: "well", unwell: "unwell" } as Record<string, string> },
-    { key: "orientation", noteKey: "orientation_note", label: "Orientation", normalValues: ["normal"], display: { normal: "normal", abnormal: "abnormal" } as Record<string, string> },
-    { key: "cranial_nerves", noteKey: "cranial_nerves_note", label: "Cranial nerves", normalValues: ["normal"], display: { normal: "normal", abnormal: "abnormal" } as Record<string, string> },
-    { key: "focal_neurology", noteKey: "focal_neurology_note", label: "Focal neurology", normalValues: ["absent"], display: { absent: "absent", present: "present" } as Record<string, string> },
-    { key: "motor_sensory", noteKey: "motor_sensory_note", label: "Motor and sensory", normalValues: ["normal"], display: { normal: "normal", abnormal: "abnormal" } as Record<string, string> },
-    { key: "gait_cerebellar", noteKey: "gait_cerebellar_note", label: "Gait/cerebellar", normalValues: ["normal"], display: { normal: "normal", abnormal: "abnormal" } as Record<string, string> },
-    { key: "meningeal_signs", noteKey: "meningeal_signs_note", label: "Meningeal signs", normalValues: ["absent"], display: { absent: "absent", present: "present" } as Record<string, string> },
-    { key: "fundoscopy", noteKey: "fundoscopy_note", label: "Fundoscopy", normalValues: ["normal"], display: { normal: "normal", papilledema: "papilledema present", abnormal_other: "abnormal" } as Record<string, string> },
+  const exam = (ctx.assessment.clinical_examination || {}) as Record<string, unknown>;
+  const lines: string[] = [];
+
+  // ── General Examination ──
+  const generalItems = [
+    { key: "anaemia", label: "anaemia" },
+    { key: "cyanosis", label: "cyanosis" },
+    { key: "lymphadenopathy", label: "lymphadenopathy" },
+    { key: "peripheral_oedema", label: "peripheral oedema" },
   ];
-
-  const normalStatements: string[] = [];
-  const abnormalStatements: string[] = [];
-  const notAssessed: string[] = [];
-
-  for (const item of examItems) {
-    const value = typeof examination[item.key] === "string" ? (examination[item.key] as string) : "";
-    if (!value) continue;
-    if (value === "not_done") {
-      notAssessed.push(item.label.toLowerCase());
-      continue;
-    }
-    const quickNote = typeof examination[item.noteKey] === "string" ? (examination[item.noteKey] as string).trim() : "";
-    const valueLabel = item.display[value] || value.replaceAll("_", " ");
-    if (item.normalValues.includes(value)) {
-      normalStatements.push(`${item.label} ${valueLabel}.`);
-    } else {
-      abnormalStatements.push(`${item.label}: ${valueLabel}${quickNote ? ` — ${quickNote}` : ""}.`);
-    }
+  const absentItems: string[] = [];
+  const presentItems: string[] = [];
+  for (const item of generalItems) {
+    const val = exam[item.key];
+    if (val === "absent") absentItems.push(item.label);
+    else if (val === "present") presentItems.push(item.label);
+  }
+  if (absentItems.length > 0 || presentItems.length > 0) {
+    const parts: string[] = [];
+    if (absentItems.length > 0) parts.push(`no ${absentItems.join(", ")}`);
+    if (presentItems.length > 0) parts.push(presentItems.join(", ") + " present");
+    lines.push(`General examination: ${parts.join("; ")}.`);
   }
 
-  const notes = typeof examination.notes === "string" ? examination.notes.trim() : "";
-  const lines: string[] = [];
-  if (normalStatements.length > 0) lines.push(...normalStatements);
-  if (abnormalStatements.length > 0) lines.push(...abnormalStatements);
-  if (notAssessed.length > 0) lines.push(`Not assessed: ${notAssessed.join(", ")}.`);
+  // Observations
+  const obsParts: string[] = [];
+  const num = (key: string) => {
+    const v = exam[key];
+    return typeof v === "number" ? v : null;
+  };
+  if (num("heart_rate_bpm") !== null) obsParts.push(`HR ${num("heart_rate_bpm")} bpm`);
+  if (num("bp_systolic") !== null && num("bp_diastolic") !== null)
+    obsParts.push(`BP ${num("bp_systolic")}/${num("bp_diastolic")} mmHg`);
+  if (num("oxygen_saturation") !== null) obsParts.push(`SpO2 ${num("oxygen_saturation")}%`);
+  if (num("temperature") !== null) obsParts.push(`Temp ${num("temperature")}\u00B0C`);
+  if (num("weight_kg") !== null) obsParts.push(`Weight ${num("weight_kg")} kg`);
+  if (num("height_cm") !== null) obsParts.push(`Height ${num("height_cm")} cm`);
+  if (num("bmi") !== null) obsParts.push(`BMI ${num("bmi")}`);
+  if (obsParts.length > 0) lines.push(`Observations: ${obsParts.join(", ")}.`);
+
+  // ── Neurological Examination ──
+  const neuroItems = [
+    { statusKey: "gait_status", detailKey: "gait_details", label: "gait" },
+    { statusKey: "cranial_nerves_status", detailKey: "cranial_nerves_details", label: "cranial nerves" },
+    { statusKey: "fundoscopy_status", detailKey: "fundoscopy_details", label: "fundoscopy" },
+    { statusKey: "motor_status", detailKey: "motor_details", label: "motor" },
+    { statusKey: "sensory_status", detailKey: "sensory_details", label: "sensory" },
+    { statusKey: "cerebellar_status", detailKey: "cerebellar_details", label: "cerebellar" },
+    { statusKey: "reflexes_status", detailKey: "reflexes_details", label: "reflexes" },
+  ];
+
+  const normalNeuro: string[] = [];
+  const abnormalNeuro: string[] = [];
+  const notAssessedNeuro: string[] = [];
+
+  for (const item of neuroItems) {
+    const status = exam[item.statusKey];
+    const detail = typeof exam[item.detailKey] === "string" ? (exam[item.detailKey] as string).trim() : "";
+    if (status === "normal") normalNeuro.push(item.label);
+    else if (status === "abnormal") abnormalNeuro.push(detail ? `${item.label} abnormal (${detail})` : `${item.label} abnormal`);
+    else if (status === "not_assessed") notAssessedNeuro.push(item.label);
+  }
+
+  const gcsTotal = num("gcs_total");
+  const neuroParts: string[] = [];
+  if (gcsTotal !== null) neuroParts.push(`GCS ${gcsTotal}/15`);
+  if (normalNeuro.length > 0) neuroParts.push(`${normalNeuro.join(", ")} normal`);
+  if (abnormalNeuro.length > 0) neuroParts.push(abnormalNeuro.join(", "));
+  if (notAssessedNeuro.length > 0) neuroParts.push(`not assessed: ${notAssessedNeuro.join(", ")}`);
+
+  if (neuroParts.length > 0) {
+    lines.push(`Neurological examination: ${neuroParts.join("; ")}.`);
+  }
+
+  const notes = typeof exam.notes === "string" ? exam.notes.trim() : "";
   if (notes) lines.push(notes);
+
   return lines.join("\n");
 }
 

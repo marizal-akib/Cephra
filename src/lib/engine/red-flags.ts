@@ -78,6 +78,45 @@ const RED_FLAG_RULES: RedFlagRule[] = [
       !!i.triggers.cough ||
       !!i.triggers.valsalva,
   },
+  // ── Clinical examination escalation rules ──
+  {
+    code: "neuro_exam_gcs_reduced",
+    description: "Reduced GCS on clinical examination (GCS < 15)",
+    severity: "urgent",
+    check: (i) => {
+      const exam = i.clinicalExamination;
+      if (!exam) return false;
+      const total = typeof exam.gcs_total === "number" ? exam.gcs_total : null;
+      return total !== null && total < 15;
+    },
+  },
+  {
+    code: "neuro_exam_fundoscopy_abnormal",
+    description: "Abnormal fundoscopy on clinical examination",
+    severity: "urgent",
+    check: (i) => {
+      const exam = i.clinicalExamination;
+      if (!exam) return false;
+      return exam.fundoscopy_status === "abnormal";
+    },
+  },
+  {
+    code: "neuro_exam_abnormal_finding",
+    description: "Abnormal neurological examination finding",
+    severity: "high",
+    check: (i) => {
+      const exam = i.clinicalExamination;
+      if (!exam) return false;
+      const domains = [
+        "gait_status",
+        "cranial_nerves_status",
+        "motor_status",
+        "sensory_status",
+        "cerebellar_status",
+      ];
+      return domains.some((key) => exam[key] === "abnormal");
+    },
+  },
 ];
 
 export function evaluateRedFlags(input: DiagnosticInput): RedFlagResult {

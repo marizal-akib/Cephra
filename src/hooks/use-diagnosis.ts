@@ -20,6 +20,7 @@ export function useDiagnosis(
       autonomic: (assessment.autonomic || {}) as Record<string, unknown>,
       triggers: (assessment.triggers || {}) as Record<string, unknown>,
       medications: (assessment.medications || {}) as Record<string, unknown>,
+      clinicalExamination: (assessment.clinical_examination || {}) as Record<string, unknown>,
     };
 
     // Only run if at least some data exists

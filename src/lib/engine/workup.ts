@@ -50,6 +50,17 @@ export function deriveSuggestedWorkup(
           workup.push("MRI/MRA brain (no contrast in pregnancy)");
           workup.push("Consider cerebral venous thrombosis workup");
           break;
+        case "neuro_exam_gcs_reduced":
+          workup.push("Urgent brain imaging");
+          workup.push("Consider neurology review");
+          break;
+        case "neuro_exam_fundoscopy_abnormal":
+          workup.push("Urgent brain imaging");
+          workup.push("Ophthalmology review");
+          break;
+        case "neuro_exam_abnormal_finding":
+          workup.push("Consider neuroimaging if new or unexplained finding");
+          break;
       }
     }
   }

@@ -4,7 +4,11 @@ export type DiagnosisCode =
   | "tension_type"
   | "cluster"
   | "medication_overuse"
-  | "chronic_migraine";
+  | "chronic_migraine"
+  | "paroxysmal_hemicrania"
+  | "hemicrania_continua"
+  | "sunct"
+  | "suna";
 
 export type Confidence = "high" | "moderate" | "possible";
 
@@ -26,6 +30,7 @@ export interface DiagnosticInput {
   autonomic: Record<string, unknown>;
   triggers: Record<string, unknown>;
   medications: Record<string, unknown>;
+  clinicalExamination?: Record<string, unknown>;
 }
 
 export interface CriterionResult {
