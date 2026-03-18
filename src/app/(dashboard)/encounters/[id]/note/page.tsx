@@ -205,13 +205,13 @@ export default function NotePage() {
     const loadClinicianProfile = async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("full_name, credentials, designation")
+        .select("full_name, credentials, specialty")
         .eq("id", clinicianId)
         .maybeSingle();
       if (cancelled) return;
       setClinicianName((data?.full_name as string) || "");
       setClinicianCredentials((data?.credentials as string) || "");
-      setClinicianDesignation((data?.designation as string) || "");
+      setClinicianDesignation((data?.specialty as string) || "");
     };
 
     void loadClinicianProfile();
@@ -229,12 +229,12 @@ export default function NotePage() {
   }, [diagnosticOutput, loadingDraft, noteContent, persistNote]);
 
   // Auto-sync to new generated content when assessment changes (if no manual edits)
+  // Do NOT set lastPersistedRef here — let the auto-save effect detect the change and persist it
   useEffect(() => {
     if (loadingDraft) return;
     if (hasManualEdits) return;
     if (noteContent.trim() === generatedContent.trim()) return;
     setNoteContent(generatedContent);
-    lastPersistedRef.current = generatedContent;
   }, [generatedContent, hasManualEdits, loadingDraft]);
 
   function handleRegenerate() {

@@ -44,6 +44,7 @@ type SelectedPatient = {
   date_of_birth: string | null;
   sex: "male" | "female" | "other" | null;
   mrn: string | null;
+  contact: string | null;
 };
 
 type CreatedAssessment = {
@@ -52,6 +53,7 @@ type CreatedAssessment = {
   patientName: string;
   createdAt: string;
   questionnaireUrl: string | null;
+  patientEmail: string | null;
 };
 
 type Step = "patient" | "record" | "questionnaire" | "complete";
@@ -214,7 +216,7 @@ function FindPatientPanel({ onSelect }: { onSelect: (p: SelectedPatient) => void
 
     const { data } = await supabase
       .from("patients")
-      .select("id, first_name, last_name, date_of_birth, sex, mrn")
+      .select("id, first_name, last_name, date_of_birth, sex, mrn, contact")
       .or(
         `first_name.ilike.%${term}%,last_name.ilike.%${term}%,mrn.ilike.%${term}%`
       )
@@ -337,8 +339,9 @@ function CreatePatientPanel({ onCreated }: { onCreated: (p: SelectedPatient) => 
           date_of_birth: form.dateOfBirth || null,
           sex: form.sex || null,
           mrn: form.mrn || null,
+          contact: form.contact || null,
         })
-        .select("id, first_name, last_name, date_of_birth, sex, mrn")
+        .select("id, first_name, last_name, date_of_birth, sex, mrn, contact")
         .single();
 
       if (err) throw err;
@@ -500,12 +503,16 @@ function RecordStep({
 
       const url = generateQuestionnaireUrl(token.token);
 
+      // Use contact as email only if it looks like an email address
+      const email = patient.contact?.includes("@") ? patient.contact : null;
+
       onCreate({
         encounterId: encounter.id,
         assessmentRef: encounter.id.slice(0, 8).toUpperCase(),
         patientName: `${patient.first_name} ${patient.last_name}`,
         createdAt: encounter.created_at,
         questionnaireUrl: url,
+        patientEmail: email,
       });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create assessment");
@@ -582,6 +589,15 @@ function RecordStep({
 // Step 3 — Questionnaire actions
 // ---------------------------------------------------------------------------
 
+function buildMailtoUrl(email: string | null, questionnaireUrl: string) {
+  const subject = encodeURIComponent("Cephra Questionnaire Link");
+  const body = encodeURIComponent(
+    `Hello,\n\nPlease use the secure link below to complete your questionnaire before your appointment:\n\n${questionnaireUrl}\n\nIf you have any issues opening the link, please contact the clinic.`
+  );
+  const to = email || "";
+  return `mailto:${to}?subject=${subject}&body=${body}`;
+}
+
 function QuestionnaireStep({
   assessment,
   onContinue,
@@ -597,6 +613,10 @@ function QuestionnaireStep({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  const mailtoUrl = assessment.questionnaireUrl
+    ? buildMailtoUrl(assessment.patientEmail, assessment.questionnaireUrl)
+    : null;
 
   return (
     <Card>
@@ -635,9 +655,23 @@ function QuestionnaireStep({
         )}
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <Button variant="outline" className="gap-2" disabled>
-            <Send className="h-4 w-4" />
-            Send Questionnaire
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={!mailtoUrl}
+            asChild={!!mailtoUrl}
+          >
+            {mailtoUrl ? (
+              <a href={mailtoUrl}>
+                <Send className="h-4 w-4" />
+                Send Questionnaire
+              </a>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Send Questionnaire
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
@@ -668,6 +702,12 @@ function QuestionnaireStep({
             </Link>
           </Button>
         </div>
+
+        {!assessment.patientEmail && (
+          <p className="text-xs text-muted-foreground">
+            No patient email saved — recipient will need to be added manually.
+          </p>
+        )}
 
         <Button className="w-full" onClick={onContinue}>
           Continue
