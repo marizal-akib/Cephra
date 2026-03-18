@@ -78,3 +78,215 @@ h3 {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+.hero-neuro-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-neuro-gradient {
+  position: absolute;
+  inset: -15% -8%;
+  background:
+    radial-gradient(circle at 15% 28%, rgba(147, 197, 253, 0.32) 0%, transparent 52%),
+    radial-gradient(circle at 78% 18%, rgba(125, 211, 252, 0.2) 0%, transparent 44%),
+    radial-gradient(circle at 62% 82%, rgba(191, 219, 254, 0.22) 0%, transparent 48%);
+  animation: neuroShift 18s ease-in-out infinite alternate;
+}
+
+.hero-neuro-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(30, 64, 175, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 64, 175, 0.08) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(circle at 50% 35%, black 25%, transparent 82%);
+}
+
+.hero-neuro-flow {
+  position: absolute;
+  width: 65vw;
+  height: 65vw;
+  max-width: 760px;
+  max-height: 760px;
+  min-width: 320px;
+  min-height: 320px;
+  border-radius: 9999px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  filter: blur(0.2px);
+}
+
+.hero-neuro-flow-a {
+  top: -12%;
+  left: -10%;
+  opacity: 0.6;
+  transform-origin: 62% 48%;
+  animation: neuroOrbit 32s linear infinite;
+}
+
+.hero-neuro-flow-b {
+  right: -14%;
+  top: 12%;
+  opacity: 0.45;
+  transform-origin: 42% 56%;
+  animation: neuroOrbitReverse 40s linear infinite;
+}
+
+.hero-neuro-pulse {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(186, 230, 253, 0.55) 0%, rgba(186, 230, 253, 0.08) 56%, transparent 72%);
+}
+
+.hero-neuro-pulse-a {
+  width: 240px;
+  height: 240px;
+  left: 12%;
+  top: 26%;
+  animation: neuroPulse 6.5s ease-in-out infinite;
+}
+
+.hero-neuro-pulse-b {
+  width: 220px;
+  height: 220px;
+  right: 18%;
+  top: 38%;
+  animation: neuroPulse 7.5s ease-in-out infinite 0.7s;
+}
+
+.hero-neuro-nodes {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(15, 23, 42, 0.35) 0 2px, transparent 3px),
+    radial-gradient(circle at 30% 40%, rgba(15, 23, 42, 0.22) 0 2px, transparent 3px),
+    radial-gradient(circle at 47% 28%, rgba(15, 23, 42, 0.3) 0 2px, transparent 3px),
+    radial-gradient(circle at 63% 42%, rgba(15, 23, 42, 0.28) 0 2px, transparent 3px),
+    radial-gradient(circle at 74% 30%, rgba(15, 23, 42, 0.22) 0 2px, transparent 3px),
+    radial-gradient(circle at 80% 54%, rgba(15, 23, 42, 0.26) 0 2px, transparent 3px),
+    linear-gradient(112deg, transparent 0 30%, rgba(59, 130, 246, 0.16) 31% 32%, transparent 33% 100%),
+    linear-gradient(72deg, transparent 0 42%, rgba(125, 211, 252, 0.14) 43% 44%, transparent 45% 100%),
+    linear-gradient(136deg, transparent 0 55%, rgba(96, 165, 250, 0.12) 56% 57%, transparent 58% 100%);
+  opacity: 0.5;
+  animation: neuroNodeFloat 12s ease-in-out infinite;
+}
+
+@keyframes neuroShift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(2%, 2%, 0) scale(1.05);
+  }
+}
+
+@keyframes neuroOrbit {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes neuroOrbitReverse {
+  0% {
+    transform: rotate(360deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes neuroPulse {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.62;
+  }
+}
+
+@keyframes neuroNodeFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-neuro-grid {
+    opacity: 0.18;
+    background-size: 38px 38px;
+  }
+
+  .hero-neuro-flow-b {
+    display: none;
+  }
+
+  .hero-neuro-pulse-a,
+  .hero-neuro-pulse-b {
+    width: 170px;
+    height: 170px;
+  }
+
+  .hero-neuro-pulse-a {
+    left: -5%;
+    top: 22%;
+  }
+
+  .hero-neuro-pulse-b {
+    right: -8%;
+    top: 46%;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-neuro-grid {
+    opacity: 0.12;
+    background-size: 30px 30px;
+  }
+
+  .hero-neuro-flow-a {
+    opacity: 0.34;
+    animation-duration: 42s;
+  }
+
+  .hero-neuro-pulse-a,
+  .hero-neuro-pulse-b {
+    width: 130px;
+    height: 130px;
+    opacity: 0.55;
+  }
+
+  .hero-neuro-nodes {
+    opacity: 0.34;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-neuro-gradient,
+  .hero-neuro-flow-a,
+  .hero-neuro-flow-b,
+  .hero-neuro-pulse-a,
+  .hero-neuro-pulse-b,
+  .hero-neuro-nodes {
+    animation: none;
+  }
+}

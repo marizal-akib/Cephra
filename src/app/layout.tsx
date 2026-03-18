@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Cephra - Headache Evaluation Tool",
-  description: "Clinician-facing headache evaluation and decision support",
+  title: "Cephra - Structured Headache Evaluation",
+  description:
+    "A clinician-focused workflow for headache intake, assessment, and note generation.",
 };
 
 export default function RootLayout({

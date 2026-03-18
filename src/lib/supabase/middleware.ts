@@ -30,6 +30,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const isPublicPath = pathname === "/" || pathname.startsWith("/docs/user-guide");
 
   // Allow patient questionnaire routes without auth
   if (pathname.startsWith("/q/")) {
@@ -37,7 +38,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Redirect unauthenticated users to login
-  if (!user && !pathname.startsWith("/login") && !pathname.startsWith("/callback")) {
+  if (
+    !user &&
+    !isPublicPath &&
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/callback")
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
