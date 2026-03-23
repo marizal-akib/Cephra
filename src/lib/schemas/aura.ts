@@ -13,6 +13,7 @@ export const auraSchema = z.object({
   aura_reversible: z.boolean().optional(),
   gradual_spread: z.boolean().optional(),
   headache_follows_aura: z.boolean().optional(),
+  notes: z.string().optional(),
 });
 
 export type AuraFormData = z.infer<typeof auraSchema>;

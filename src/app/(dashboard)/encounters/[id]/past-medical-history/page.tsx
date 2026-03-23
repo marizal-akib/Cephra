@@ -6,7 +6,7 @@ import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrap
 import { pastMedicalHistorySchema } from "@/lib/schemas/past-medical-history";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 
 const COMMON_CONDITIONS = [
   { value: "hypertension", label: "Hypertension" },

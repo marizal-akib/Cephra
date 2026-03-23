@@ -5,6 +5,8 @@ import { useEncounterContext } from "../layout";
 import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrapper";
 import { autonomicSchema } from "@/lib/schemas/autonomic";
 import { ToggleField } from "@/components/encounter/toggle-field";
+import { Label } from "@/components/ui/label";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 
 export default function AutonomicPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
@@ -73,6 +75,15 @@ export default function AutonomicPage() {
                 <ToggleField label="Eyelid oedema" checked={!!v.eyelid_oedema} onCheckedChange={(c) => set("eyelid_oedema", c)} disabled={autonomicNA} />
                 <ToggleField label="Facial sweating" checked={!!v.facial_sweating} onCheckedChange={(c) => set("facial_sweating", c)} disabled={autonomicNA} />
                 <ToggleField label="Ear fullness" checked={!!v.ear_fullness} onCheckedChange={(c) => set("ear_fullness", c)} disabled={autonomicNA} />
+              </div>
+              <div className="space-y-2">
+                <Label>Autonomic Notes</Label>
+                <Textarea
+                  value={(v.notes as string) || ""}
+                  onChange={(e) => set("notes", e.target.value)}
+                  placeholder="Add additional details about autonomic features..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           );

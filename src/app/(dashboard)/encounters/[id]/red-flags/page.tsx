@@ -5,6 +5,8 @@ import { useEncounterContext } from "../layout";
 import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrapper";
 import { redFlagsSchema, RED_FLAG_FIELDS } from "@/lib/schemas/red-flags";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,7 +15,7 @@ export default function RedFlagsPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
     useEncounterContext();
 
-  const defaultValues = (assessment?.red_flags || {}) as Record<string, boolean>;
+  const defaultValues = (assessment?.red_flags || {}) as Record<string, unknown>;
 
   const handleDataChange = useCallback(
     (data: Record<string, unknown>) => {
@@ -42,7 +44,9 @@ export default function RedFlagsPage() {
       >
         {(form) => {
           const values = form.watch();
-          const hasFlags = Object.values(values).some(Boolean);
+          const set = (name: string, value: unknown) =>
+            form.setValue(name as never, value as never, { shouldDirty: true });
+          const hasFlags = Object.entries(values).some(([k, v]) => k !== "notes" && v === true);
 
           return (
             <div className="space-y-4">
@@ -108,6 +112,15 @@ export default function RedFlagsPage() {
                     </div>
                   </label>
                 ))}
+              </div>
+              <div className="space-y-2">
+                <Label>Red Flag Notes</Label>
+                <Textarea
+                  value={(values.notes as string) || ""}
+                  onChange={(e) => set("notes", e.target.value)}
+                  placeholder="Add context about red flag findings, e.g. details of onset, prior imaging..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           );

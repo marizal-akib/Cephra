@@ -13,6 +13,14 @@ export const medsSchema = z.object({
   current_preventive: z.string().optional(),
   preventive_response: z.string().optional(),
   current_medications_text: z.string().optional(),
+  medication_actions: z.array(z.object({
+    drug: z.string(),
+    type: z.enum(["preventive", "acute", "other"]),
+    dose: z.string(),
+    benefit: z.string(),
+    tolerability: z.string(),
+    action: z.enum(["continue", "increase", "decrease", "stop", "add", "switch"]),
+  })).optional(),
 });
 
 export type MedsFormData = z.infer<typeof medsSchema>;

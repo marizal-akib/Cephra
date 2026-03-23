@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { followUpSchema } from "@/lib/schemas/follow-up";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,10 +18,25 @@ import {
   AlertTriangle,
   CheckCircle2,
   CircleHelp,
+  Plus,
   ShieldAlert,
   ShieldCheck,
+  Trash2,
   XCircle,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface InvestigationResult {
+  name: string;
+  result: string;
+  interpretation: string;
+}
 import { cn } from "@/lib/utils";
 import type { PhenotypeResult } from "@/lib/engine/types";
 
@@ -71,6 +86,11 @@ export default function WorkupPage() {
   const [accepted, setAccepted] = useState<Record<string, boolean>>({});
   const [includeWorkupSuggestions, setIncludeWorkupSuggestions] = useState(true);
   const [workupNotes, setWorkupNotes] = useState("");
+  const [keyDiagnosticQuestion, setKeyDiagnosticQuestion] = useState("");
+  const [investigationResults, setInvestigationResults] = useState<InvestigationResult[]>([]);
+  const [pendingInvestigations, setPendingInvestigations] = useState("");
+  const [assessmentSummary, setAssessmentSummary] = useState("");
+  const [treatmentChanges, setTreatmentChanges] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -106,6 +126,13 @@ export default function WorkupPage() {
       return acceptedMap;
     });
     setWorkupNotes(workupNotesStr);
+    setKeyDiagnosticQuestion((data.key_diagnostic_question as string) || "");
+    setInvestigationResults(
+      Array.isArray(data.investigation_results) ? (data.investigation_results as InvestigationResult[]) : []
+    );
+    setPendingInvestigations((data.pending_investigations as string) || "");
+    setAssessmentSummary((data.assessment_summary as string) || "");
+    setTreatmentChanges((data.treatment_changes as string) || "");
   }, [assessment?.workup_data]);
 
   const persistWorkupData = useCallback(
@@ -113,6 +140,11 @@ export default function WorkupPage() {
       workup_notes: string;
       accepted_workup_items: Record<string, boolean>;
       include_workup_suggestions: boolean;
+      key_diagnostic_question: string;
+      investigation_results: InvestigationResult[];
+      pending_investigations: string;
+      assessment_summary: string;
+      treatment_changes: string;
     }) => {
       setSaving(true);
       try {
@@ -135,6 +167,11 @@ export default function WorkupPage() {
       workup_notes: workupNotes,
       accepted_workup_items: accepted,
       include_workup_suggestions: includeWorkupSuggestions,
+      key_diagnostic_question: keyDiagnosticQuestion,
+      investigation_results: investigationResults,
+      pending_investigations: pendingInvestigations,
+      assessment_summary: assessmentSummary,
+      treatment_changes: treatmentChanges,
     };
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
@@ -143,24 +180,31 @@ export default function WorkupPage() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [accepted, workupNotes, includeWorkupSuggestions, persistWorkupData]);
+  }, [accepted, workupNotes, includeWorkupSuggestions, keyDiagnosticQuestion, investigationResults, pendingInvestigations, assessmentSummary, treatmentChanges, persistWorkupData]);
 
   // Sync accepted/workupNotes to context so note page has latest data on nav.
   // Debounce to avoid layout re-renders on every checkbox/keystroke.
+  const buildWorkupPayload = useCallback(() => ({
+    workup_notes: workupNotes,
+    accepted_workup_items: accepted,
+    include_workup_suggestions: includeWorkupSuggestions,
+    key_diagnostic_question: keyDiagnosticQuestion,
+    investigation_results: investigationResults,
+    pending_investigations: pendingInvestigations,
+    assessment_summary: assessmentSummary,
+    treatment_changes: treatmentChanges,
+  }), [workupNotes, accepted, includeWorkupSuggestions, keyDiagnosticQuestion, investigationResults, pendingInvestigations, assessmentSummary, treatmentChanges]);
+
   useEffect(() => {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      updateAssessmentLocal("workup_data", {
-        workup_notes: workupNotes,
-        accepted_workup_items: accepted,
-        include_workup_suggestions: includeWorkupSuggestions,
-      });
+      updateAssessmentLocal("workup_data", buildWorkupPayload());
       syncTimerRef.current = null;
     }, 100);
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
-  }, [accepted, workupNotes, includeWorkupSuggestions, updateAssessmentLocal]);
+  }, [buildWorkupPayload, updateAssessmentLocal]);
 
   const followUpDefaultValues = (assessment?.follow_up || {}) as Record<string, unknown>;
 
@@ -225,6 +269,22 @@ export default function WorkupPage() {
             </AlertDescription>
           </Alert>
         ))}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Key Diagnostic Question</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input
+            value={keyDiagnosticQuestion}
+            onChange={(e) => setKeyDiagnosticQuestion(e.target.value)}
+            placeholder='e.g. "Is the preventive working?", "Is MOH developing?"'
+          />
+          <p className="text-xs text-muted-foreground mt-1.5">
+            The single most important clinical question this review needs to answer.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -386,6 +446,129 @@ export default function WorkupPage() {
 
       <Card>
         <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Investigation Results</CardTitle>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() =>
+                setInvestigationResults((prev) => [
+                  ...prev,
+                  { name: "", result: "", interpretation: "" },
+                ])
+              }
+            >
+              <Plus className="h-3 w-3" />Add
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Record investigation results with clinical interpretation. Never list a result without stating what it means for this patient.
+          </p>
+          {investigationResults.map((inv, idx) => (
+            <div key={idx} className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Investigation {idx + 1}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    setInvestigationResults((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Investigation Name</Label>
+                <Input
+                  value={inv.name}
+                  onChange={(e) =>
+                    setInvestigationResults((prev) => {
+                      const next = [...prev];
+                      next[idx] = { ...next[idx], name: e.target.value };
+                      return next;
+                    })
+                  }
+                  placeholder="e.g. MRI brain with contrast"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Result</Label>
+                <Input
+                  value={inv.result}
+                  onChange={(e) =>
+                    setInvestigationResults((prev) => {
+                      const next = [...prev];
+                      next[idx] = { ...next[idx], result: e.target.value };
+                      return next;
+                    })
+                  }
+                  placeholder="e.g. Normal, no structural lesion"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Clinical Interpretation</Label>
+                <Textarea
+                  value={inv.interpretation}
+                  onChange={(e) =>
+                    setInvestigationResults((prev) => {
+                      const next = [...prev];
+                      next[idx] = { ...next[idx], interpretation: e.target.value };
+                      return next;
+                    })
+                  }
+                  placeholder="e.g. Supports primary headache diagnosis, no structural lesion to explain symptoms"
+                  className="min-h-[60px]"
+                />
+              </div>
+            </div>
+          ))}
+          <div className="space-y-2">
+            <Label>Pending Investigations</Label>
+            <Textarea
+              value={pendingInvestigations}
+              onChange={(e) => setPendingInvestigations(e.target.value)}
+              placeholder="List any pending tests with expected timelines..."
+              className="min-h-[80px]"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Clinical Assessment & Treatment</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Assessment Summary</Label>
+            <Textarea
+              value={assessmentSummary}
+              onChange={(e) => setAssessmentSummary(e.target.value)}
+              placeholder="Clinical summary tying together burden data, medication response, exam findings, and investigation results. State whether improving, stable, or worsening..."
+              className="min-h-[120px]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Treatment Changes This Visit</Label>
+            <Textarea
+              value={treatmentChanges}
+              onChange={(e) => setTreatmentChanges(e.target.value)}
+              placeholder="Specific changes made today: dose adjustments, new prescriptions, stopped medications, referrals. Include dose, route, frequency, titration instructions..."
+              className="min-h-[100px]"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Follow-up</CardTitle>
         </CardHeader>
         <CardContent>
@@ -403,21 +586,65 @@ export default function WorkupPage() {
                 form.setValue(name as never, value as never, { shouldDirty: true });
 
               return (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Follow-up Date</Label>
+                      <Input
+                        type="date"
+                        value={(v.follow_up_date as string) || ""}
+                        onChange={(e) => set("follow_up_date", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Follow-up Time</Label>
+                      <Input
+                        type="time"
+                        value={(v.follow_up_time as string) || ""}
+                        onChange={(e) => set("follow_up_time", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Follow-up Type</Label>
+                      <Select
+                        value={(v.follow_up_type as string) || ""}
+                        onValueChange={(val) => set("follow_up_type", val)}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="clinic">Clinic (face-to-face)</SelectItem>
+                          <SelectItem value="virtual">Virtual</SelectItem>
+                          <SelectItem value="gp_review">GP Review</SelectItem>
+                          <SelectItem value="telephone">Telephone</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Responsible Clinician</Label>
+                      <Input
+                        value={(v.follow_up_clinician as string) || ""}
+                        onChange={(e) => set("follow_up_clinician", e.target.value)}
+                        placeholder="Clinician or service name"
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label>Follow-up Date</Label>
+                    <Label>Purpose of Follow-up</Label>
                     <Input
-                      type="date"
-                      value={(v.follow_up_date as string) || ""}
-                      onChange={(e) => set("follow_up_date", e.target.value)}
+                      value={(v.follow_up_purpose as string) || ""}
+                      onChange={(e) => set("follow_up_purpose", e.target.value)}
+                      placeholder="e.g. Review preventive response at 3 months"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Follow-up Time</Label>
-                    <Input
-                      type="time"
-                      value={(v.follow_up_time as string) || ""}
-                      onChange={(e) => set("follow_up_time", e.target.value)}
+                    <Label>Safety Counselling</Label>
+                    <Textarea
+                      value={(v.safety_counselling as string) || ""}
+                      onChange={(e) => set("safety_counselling", e.target.value)}
+                      placeholder="Document emergency escalation advice given (e.g. attend ED if thunderclap headache, new focal neurology), medication safety, driving/work implications..."
+                      className="min-h-[100px]"
                     />
                   </div>
                 </div>
@@ -434,11 +661,7 @@ export default function WorkupPage() {
               clearTimeout(syncTimerRef.current);
               syncTimerRef.current = null;
             }
-            updateAssessmentLocal("workup_data", {
-              workup_notes: workupNotes,
-              accepted_workup_items: accepted,
-              include_workup_suggestions: includeWorkupSuggestions,
-            });
+            updateAssessmentLocal("workup_data", buildWorkupPayload());
             router.push(`/encounters/${encounterId}/note`);
           }}
         >

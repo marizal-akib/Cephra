@@ -6,6 +6,8 @@ import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrap
 import { painSchema } from "@/lib/schemas/pain";
 import { ToggleField } from "@/components/encounter/toggle-field";
 import { NumberField } from "@/components/encounter/number-field";
+import { Label } from "@/components/ui/label";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 
 export default function PainPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
@@ -104,6 +106,15 @@ export default function PainPage() {
                   <ToggleField label="Restless or pacing" checked={!!v.restless_or_pacing} onCheckedChange={(c) => set("restless_or_pacing", c)} />
                   <ToggleField label="Continuous background" checked={!!v.continuous_background} onCheckedChange={(c) => set("continuous_background", c)} />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Pain Notes</Label>
+                <Textarea
+                  value={(v.notes as string) || ""}
+                  onChange={(e) => set("notes", e.target.value)}
+                  placeholder="Add additional details about pain characteristics..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           );

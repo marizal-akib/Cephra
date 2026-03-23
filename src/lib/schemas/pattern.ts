@@ -24,6 +24,8 @@ export const patternSchema = z.object({
   daily_or_near_daily: z.boolean().optional(),
   worsening_with_increased_meds: z.boolean().optional(),
   wakes_from_sleep: z.boolean().optional(),
+  notes: z.string().optional(),
+  functional_impact_notes: z.string().optional(),
 });
 
 export type PatternFormData = z.infer<typeof patternSchema>;

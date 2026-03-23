@@ -8,6 +8,8 @@ import { ToggleField } from "@/components/encounter/toggle-field";
 import { NumberField } from "@/components/encounter/number-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 
 export default function AuraPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
@@ -86,6 +88,15 @@ export default function AuraPage() {
                 <ToggleField label="Aura is reversible" checked={!!v.aura_reversible} onCheckedChange={(c) => set("aura_reversible", c)} />
                 <ToggleField label="Gradual spread (>=5 min)" checked={!!v.gradual_spread} onCheckedChange={(c) => set("gradual_spread", c)} />
                 <ToggleField label="Headache follows aura" checked={!!v.headache_follows_aura} onCheckedChange={(c) => set("headache_follows_aura", c)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Aura Notes</Label>
+                <Textarea
+                  value={(v.notes as string) || ""}
+                  onChange={(e) => set("notes", e.target.value)}
+                  placeholder="Add additional details about aura features..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           );

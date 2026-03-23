@@ -11,6 +11,7 @@ export const autonomicSchema = z.object({
   eyelid_oedema: z.boolean().optional(),
   facial_sweating: z.boolean().optional(),
   ear_fullness: z.boolean().optional(),
+  notes: z.string().optional(),
 });
 
 export type AutonomicFormData = z.infer<typeof autonomicSchema>;

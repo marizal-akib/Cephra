@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UseFormReturn } from "react-hook-form";

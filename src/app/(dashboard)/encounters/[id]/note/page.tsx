@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEncounterContext } from "../layout";
 import { generateNote } from "@/lib/note-gen/generate";
+import { generateInitialClinicLetter } from "@/lib/note-gen/generate-initial";
 import { createClient } from "@/lib/supabase/client";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,6 +64,7 @@ export default function NotePage() {
   const [noteContent, setNoteContent] = useState("");
   const [currentVersion, setCurrentVersion] = useState(1);
   const [editMode, setEditMode] = useState(false);
+  const [letterFormat, setLetterFormat] = useState<"follow_up" | "initial">("follow_up");
   const [clinicianName, setClinicianName] = useState("");
   const [clinicianCredentials, setClinicianCredentials] = useState("");
   const [clinicianDesignation, setClinicianDesignation] = useState("");
@@ -90,7 +92,7 @@ export default function NotePage() {
 
   const generatedContent = useMemo(() => {
     if (!assessment || !diagnosticOutput) return "";
-    return generateNote({
+    const ctx = {
       patientName,
       patientId: encounter?.patient?.mrn || encounter?.patient?.id?.slice(0, 8).toUpperCase(),
       age: encounter?.patient?.date_of_birth
@@ -108,7 +110,8 @@ export default function NotePage() {
       clinicianDesignation,
       consultationDate: encounter?.created_at,
       assessmentReference: assessmentReference(encounterId),
-    });
+    };
+    return letterFormat === "initial" ? generateInitialClinicLetter(ctx) : generateNote(ctx);
   }, [
     assessment,
     diagnosticOutput,
@@ -122,6 +125,7 @@ export default function NotePage() {
     clinicianName,
     clinicianCredentials,
     clinicianDesignation,
+    letterFormat,
   ]);
 
   generatedContentRef.current = generatedContent;
@@ -330,7 +334,7 @@ export default function NotePage() {
         currentBody = [];
         continue;
       }
-      if (/^=+$/.test(line.trim())) continue;
+      if (/^[=-]+$/.test(line.trim())) continue;
       currentBody.push(line);
     }
     if (currentHeading || currentBody.length > 0) {
@@ -391,6 +395,32 @@ export default function NotePage() {
           )}
         </div>
       </div>
+
+      {/* Letter format selector */}
+      {!isCompleted && (
+        <div className="no-print flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Letter format:</span>
+          <div className="flex items-center rounded-md border bg-background shadow-sm">
+            <Button
+              variant={letterFormat === "follow_up" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 rounded-r-none gap-1.5 text-xs"
+              onClick={() => { setLetterFormat("follow_up"); setHasManualEdits(false); }}
+            >
+              Follow-up (7 sections)
+            </Button>
+            <Separator orientation="vertical" className="h-5" />
+            <Button
+              variant={letterFormat === "initial" ? "default" : "ghost"}
+              size="sm"
+              className="h-7 rounded-l-none gap-1.5 text-xs"
+              onClick={() => { setLetterFormat("initial"); setHasManualEdits(false); }}
+            >
+              Initial Clinic Letter (11 sections)
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="no-print flex items-center gap-2 rounded-lg border bg-muted/40 p-1.5">
@@ -462,17 +492,35 @@ export default function NotePage() {
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{section.heading}</h3>
                   )}
                   <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap print-note-section">
-                    {section.heading === "RED FLAG SUMMARY" ? (
-                      section.body.startsWith("No red flags") ? (
-                        <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 mb-3 text-emerald-800 print:border-emerald-300 print:bg-emerald-50/80">
-                          <CheckCircle2 className="h-4 w-4 shrink-0" /><span>{section.body}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 mb-3 text-red-800 print:border-red-300 print:bg-red-50/80">
-                          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                          <span className="font-medium">{section.body}</span>
-                        </div>
-                      )
+                    {section.heading === "RED FLAG SYMPTOMS AND SIGNS" ? (
+                      section.body.split("\n").map((line, j) => {
+                        if (line.includes(": PRESENT")) {
+                          return (
+                            <div key={j} className="flex items-start gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-1.5 mb-1.5 text-red-800 text-sm">
+                              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                              <span className="font-medium">{line.replace(/^- /, "")}</span>
+                            </div>
+                          );
+                        }
+                        if (line.includes(": Absent")) {
+                          return (
+                            <div key={j} className="flex items-start gap-2 px-3 py-1 mb-0.5 text-sm text-muted-foreground">
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-500" />
+                              <span>{line.replace(/^- /, "")}</span>
+                            </div>
+                          );
+                        }
+                        if (line.trim() === "") return <div key={j} className="h-2" />;
+                        return <p key={j} className="mb-1 text-sm">{line}</p>;
+                      })
+                    ) : section.heading === "ASSESSMENT MANAGEMENT AND FOLLOW UP PLAN" ? (
+                      section.body.split("\n").map((line, j) => {
+                        if (/^(Assessment|Treatment changes|Safety counselling|Follow-up plan):$/.test(line.trim())) {
+                          return <p key={j} className="font-semibold text-slate-700 mt-3 mb-1 first:mt-0">{line}</p>;
+                        }
+                        if (line.trim() === "") return <div key={j} className="h-1" />;
+                        return <p key={j} className="mb-1">{line}</p>;
+                      })
                     ) : (
                     section.body.split("\n").map((line, j) => {
                       if (line.startsWith("RED FLAGS:")) {

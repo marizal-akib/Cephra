@@ -17,6 +17,7 @@ export const redFlagsSchema = z.object({
   anticoagulation: z.boolean().default(false),
   jaw_claudication: z.boolean().default(false),
   scalp_tenderness: z.boolean().default(false),
+  notes: z.string().optional(),
 });
 
 export type RedFlagsFormData = z.infer<typeof redFlagsSchema>;

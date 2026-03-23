@@ -6,7 +6,7 @@ import { EncounterFormWrapper } from "@/components/encounter/encounter-form-wrap
 import { symptomsSchema } from "@/lib/schemas/symptoms";
 import { ToggleField } from "@/components/encounter/toggle-field";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 
 export default function SymptomsPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =

@@ -25,6 +25,7 @@ export const painSchema = z.object({
   prefers_to_lie_still: z.boolean().optional(),
   restless_or_pacing: z.boolean().optional(),
   continuous_background: z.boolean().optional(),
+  notes: z.string().optional(),
 });
 
 export type PainFormData = z.infer<typeof painSchema>;

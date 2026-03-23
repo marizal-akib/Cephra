@@ -7,7 +7,7 @@ import { triggersSchema } from "@/lib/schemas/triggers";
 import { ToggleField } from "@/components/encounter/toggle-field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { AlertTriangle } from "lucide-react";
 
 export default function TriggersPage() {

@@ -8,9 +8,26 @@ import { ToggleField } from "@/components/encounter/toggle-field";
 import { NumberField } from "@/components/encounter/number-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface MedicationAction {
+  drug: string;
+  type: "preventive" | "acute" | "other";
+  dose: string;
+  benefit: string;
+  tolerability: string;
+  action: "continue" | "increase" | "decrease" | "stop" | "add" | "switch";
+}
 
 export default function MedsPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
@@ -118,6 +135,142 @@ export default function MedsPage() {
                   placeholder="List other current medications the patient is using..."
                   className="min-h-[120px]"
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Medication Review</h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1 text-xs"
+                    onClick={() => {
+                      const actions = (Array.isArray(v.medication_actions) ? v.medication_actions : []) as MedicationAction[];
+                      set("medication_actions", [...actions, { drug: "", type: "acute", dose: "", benefit: "", tolerability: "", action: "continue" }]);
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />Add Medication
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Structured per-medication review for the clinic letter. Record each drug with its response and planned action.
+                </p>
+                {Array.isArray(v.medication_actions) && (v.medication_actions as MedicationAction[]).length > 0 && (
+                  <div className="space-y-3">
+                    {(v.medication_actions as MedicationAction[]).map((med, idx) => (
+                      <div key={idx} className="rounded-lg border p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-muted-foreground">Medication {idx + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                              const actions = [...(v.medication_actions as MedicationAction[])];
+                              actions.splice(idx, 1);
+                              set("medication_actions", actions);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Drug Name</Label>
+                            <Input
+                              value={med.drug}
+                              onChange={(e) => {
+                                const actions = [...(v.medication_actions as MedicationAction[])];
+                                actions[idx] = { ...actions[idx], drug: e.target.value };
+                                set("medication_actions", actions);
+                              }}
+                              placeholder="e.g. Topiramate"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Type</Label>
+                            <Select
+                              value={med.type}
+                              onValueChange={(val) => {
+                                const actions = [...(v.medication_actions as MedicationAction[])];
+                                actions[idx] = { ...actions[idx], type: val as MedicationAction["type"] };
+                                set("medication_actions", actions);
+                              }}
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="preventive">Preventive</SelectItem>
+                                <SelectItem value="acute">Acute</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Dose & Schedule</Label>
+                            <Input
+                              value={med.dose}
+                              onChange={(e) => {
+                                const actions = [...(v.medication_actions as MedicationAction[])];
+                                actions[idx] = { ...actions[idx], dose: e.target.value };
+                                set("medication_actions", actions);
+                              }}
+                              placeholder="e.g. 50mg BD"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Action</Label>
+                            <Select
+                              value={med.action}
+                              onValueChange={(val) => {
+                                const actions = [...(v.medication_actions as MedicationAction[])];
+                                actions[idx] = { ...actions[idx], action: val as MedicationAction["action"] };
+                                set("medication_actions", actions);
+                              }}
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="continue">Continue</SelectItem>
+                                <SelectItem value="increase">Increase</SelectItem>
+                                <SelectItem value="decrease">Decrease</SelectItem>
+                                <SelectItem value="stop">Stop</SelectItem>
+                                <SelectItem value="add">Add (new)</SelectItem>
+                                <SelectItem value="switch">Switch</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Benefit</Label>
+                            <Input
+                              value={med.benefit}
+                              onChange={(e) => {
+                                const actions = [...(v.medication_actions as MedicationAction[])];
+                                actions[idx] = { ...actions[idx], benefit: e.target.value };
+                                set("medication_actions", actions);
+                              }}
+                              placeholder="e.g. 50% reduction in headache days"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Tolerability</Label>
+                            <Input
+                              value={med.tolerability}
+                              onChange={(e) => {
+                                const actions = [...(v.medication_actions as MedicationAction[])];
+                                actions[idx] = { ...actions[idx], tolerability: e.target.value };
+                                set("medication_actions", actions);
+                              }}
+                              placeholder="e.g. Mild paraesthesia, well tolerated"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );

@@ -9,6 +9,7 @@ import { NumberField } from "@/components/encounter/number-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 
 export default function PatternPage() {
   const { encounterId, assessment, updateAssessmentLocal, updateEncounterLocal } =
@@ -232,6 +233,24 @@ export default function PatternPage() {
                   label="Worsening with increased medication"
                   checked={!!v.worsening_with_increased_meds}
                   onCheckedChange={(c) => set("worsening_with_increased_meds", c)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Functional Impact</Label>
+                <Textarea
+                  value={(v.functional_impact_notes as string) || ""}
+                  onChange={(e) => set("functional_impact_notes", e.target.value)}
+                  placeholder="Work days lost, disability, effect on daily activities..."
+                  className="min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Pattern Notes</Label>
+                <Textarea
+                  value={(v.notes as string) || ""}
+                  onChange={(e) => set("notes", e.target.value)}
+                  placeholder="Add additional details about headache pattern..."
+                  className="min-h-[120px]"
                 />
               </div>
             </div>
