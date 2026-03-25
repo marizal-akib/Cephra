@@ -11,6 +11,7 @@ export default async function AssessmentWorkflowPage() {
       `
         id,
         status,
+        encounter_type,
         current_step,
         created_at,
         updated_at,

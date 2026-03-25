@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useEncounterContext } from "../layout";
 import { FollowUpFormWrapper } from "@/components/encounter/followup-form-wrapper";
 import { reviewSchema } from "@/lib/schemas/followup/review";
@@ -10,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Badge } from "@/components/ui/badge";
 import { InfoTip } from "@/components/ui/info-tip";
+import { Button } from "@/components/ui/button";
 import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
 import {
   Select,
@@ -44,11 +47,18 @@ export default function ReviewPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div>
-        <h2 className="text-xl font-bold">Review Details & Diagnosis</h2>
-        <p className="text-sm text-muted-foreground">
-          Patient identifiers, current diagnosis, and key clinical question for this review.
-        </p>
+      <div className="flex items-start gap-3">
+        <Button variant="ghost" size="icon" asChild className="-ml-2 shrink-0">
+          <Link href="/workflow" aria-label="Back to workflow">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div>
+          <h2 className="text-xl font-bold">Review Details & Diagnosis</h2>
+          <p className="text-sm text-muted-foreground">
+            Patient identifiers, current diagnosis, and key clinical question for this review.
+          </p>
+        </div>
       </div>
 
       <Card>

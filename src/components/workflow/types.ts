@@ -3,6 +3,7 @@ import { type EncounterStatus } from "@/lib/assessment";
 export type WorkflowEncounter = {
   id: string;
   status: EncounterStatus;
+  encounter_type: "initial" | "follow_up";
   current_step: string | null;
   created_at: string;
   updated_at: string;

@@ -666,7 +666,7 @@ export function AssessmentWorkflowList({
               <p className="text-sm text-muted-foreground">{patientDisplayId(encounter)}</p>
             </div>
             <Badge variant="outline">
-              {encounter.referred_by_clinician_id ? "Referred" : "Mine"}
+              {encounter.encounter_type === "follow_up" ? "Follow Up" : "Initial Assessment"}
             </Badge>
           </div>
 
@@ -1068,7 +1068,7 @@ export function AssessmentWorkflowList({
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {encounter.referred_by_clinician_id ? "Referred" : "Mine"}
+                              {encounter.encounter_type === "follow_up" ? "Follow Up" : "Initial Assessment"}
                             </Badge>
                           </TableCell>
                           <TableCell>{formatDate(encounter.updated_at)}</TableCell>
