@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { ToggleField } from "@/components/encounter/toggle-field";
 import { Button } from "@/components/ui/button";
+import { InfoTip } from "@/components/ui/info-tip";
+import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
 import { useRouter } from "next/navigation";
 import {
   Select,
@@ -59,7 +61,7 @@ export default function FuPlanPage() {
           return (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold mb-3">Assessment</h3>
+                <h3 className="text-sm font-semibold mb-3">Assessment <InfoTip content={TOOLTIP.plan.assessment} /></h3>
                 <div className="space-y-4">
                   {topDiagnosis && (
                     <p className="text-sm text-muted-foreground">
@@ -104,7 +106,7 @@ export default function FuPlanPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Treatment Changes</h3>
+                <h3 className="text-sm font-semibold mb-3">Treatment Changes <InfoTip content={TOOLTIP.plan.treatmentChanges} /></h3>
                 <Textarea
                   value={(v.treatment_changes as string) || ""}
                   onChange={(e) => set("treatment_changes", e.target.value)}
@@ -114,7 +116,7 @@ export default function FuPlanPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Safety Counselling</h3>
+                <h3 className="text-sm font-semibold mb-3">Safety Counselling <InfoTip content={TOOLTIP.plan.safetyCounselling} /></h3>
                 <Textarea
                   value={(v.safety_counselling as string) || ""}
                   onChange={(e) => set("safety_counselling", e.target.value)}
@@ -124,7 +126,7 @@ export default function FuPlanPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Follow-up Plan</h3>
+                <h3 className="text-sm font-semibold mb-3">Follow-up Plan <InfoTip content={TOOLTIP.plan.followUpPlan} /></h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">

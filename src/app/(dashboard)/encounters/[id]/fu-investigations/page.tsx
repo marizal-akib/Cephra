@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
+import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
 
 export default function FuInvestigationsPage() {
   const { encounterId, followUpAssessment, updateFollowUpLocal, updateEncounterLocal } =
@@ -27,7 +29,7 @@ export default function FuInvestigationsPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h2 className="text-xl font-bold">Investigation & Results Review</h2>
+        <h2 className="text-xl font-bold">Investigation & Results Review <InfoTip content={TOOLTIP.investigations.section} /></h2>
         <p className="text-sm text-muted-foreground">
           Review results since last consultation. Never list a result without an interpretation.
         </p>
@@ -52,7 +54,7 @@ export default function FuInvestigationsPage() {
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Results Reviewed</h3>
+                  <h3 className="text-sm font-semibold">Results Reviewed <InfoTip content={TOOLTIP.investigations.resultsReviewed} /></h3>
                   <Button
                     type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs"
                     onClick={() => set("results", [...results, { name: "", result: "", interpretation: "" }])}
@@ -88,7 +90,7 @@ export default function FuInvestigationsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Pending Investigations</Label>
+                <Label>Pending Investigations <InfoTip content={TOOLTIP.investigations.pending} /></Label>
                 <Textarea
                   value={(v.pending as string) || ""}
                   onChange={(e) => set("pending", e.target.value)}

@@ -9,6 +9,8 @@ import { ToggleField } from "@/components/encounter/toggle-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
+import { InfoTip } from "@/components/ui/info-tip";
+import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
 import {
   Select,
   SelectContent,
@@ -33,7 +35,7 @@ export default function FuExaminationPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h2 className="text-xl font-bold">Focused Clinical Examination</h2>
+        <h2 className="text-xl font-bold">Focused Clinical Examination <InfoTip content={TOOLTIP.examination.section} /></h2>
         <p className="text-sm text-muted-foreground">
           Perform a focused examination relevant to the diagnosis. Document changes from baseline.
         </p>
@@ -57,7 +59,7 @@ export default function FuExaminationPage() {
           return (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold mb-3">General Observations</h3>
+                <h3 className="text-sm font-semibold mb-3">General Observations <InfoTip content={TOOLTIP.examination.generalObservations} /></h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <NumberField label="BP Systolic" value={v.bp_systolic as number | undefined} onChange={(val) => set("bp_systolic", val)} min={60} max={300} unit="mmHg" />
                   <NumberField label="BP Diastolic" value={v.bp_diastolic as number | undefined} onChange={(val) => set("bp_diastolic", val)} min={30} max={200} unit="mmHg" />
@@ -67,7 +69,7 @@ export default function FuExaminationPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Neurological Examination</h3>
+                <h3 className="text-sm font-semibold mb-3">Neurological Examination <InfoTip content={TOOLTIP.examination.neuroExam} /></h3>
                 <ToggleField
                   label="Examination unchanged from baseline"
                   description={baseline?.encounter_date ? `From ${new Date(baseline.encounter_date).toLocaleDateString("en-GB")}` : undefined}
@@ -123,7 +125,7 @@ export default function FuExaminationPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Diagnosis-Specific Findings</h3>
+                <h3 className="text-sm font-semibold mb-3">Diagnosis-Specific Findings <InfoTip content={TOOLTIP.examination.diagnosisSpecific} /></h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Pericranial Tenderness</Label>
@@ -153,7 +155,7 @@ export default function FuExaminationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Examination Notes</Label>
+                <Label>Examination Notes <InfoTip content={TOOLTIP.examination.examinationNotes} /></Label>
                 <Textarea
                   value={(v.notes as string) || ""}
                   onChange={(e) => set("notes", e.target.value)}

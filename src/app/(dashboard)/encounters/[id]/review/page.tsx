@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/ui/info-tip";
+import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
 import {
   Select,
   SelectContent,
@@ -51,7 +53,7 @@ export default function ReviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Patient Details</CardTitle>
+          <CardTitle className="text-base">Patient Details <InfoTip content={TOOLTIP.review.patientDetails} /></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -99,7 +101,7 @@ export default function ReviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Current Working Diagnosis</CardTitle>
+          <CardTitle className="text-base">Current Working Diagnosis <InfoTip content={TOOLTIP.review.workingDiagnosis} /></CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {topDiagnosis ? (
@@ -202,7 +204,7 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Key Diagnostic Question</Label>
+                  <Label>Key Diagnostic Question <InfoTip content={TOOLTIP.review.keyQuestion} /></Label>
                   <Input
                     value={(v.key_question as string) || ""}
                     onChange={(e) => set("key_question", e.target.value)}
@@ -214,7 +216,7 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Diagnosis Notes</Label>
+                  <Label>Diagnosis Notes <InfoTip content={TOOLTIP.review.diagnosisNotes} /></Label>
                   <Textarea
                     value={(v.diagnosis_notes as string) || ""}
                     onChange={(e) => set("diagnosis_notes", e.target.value)}

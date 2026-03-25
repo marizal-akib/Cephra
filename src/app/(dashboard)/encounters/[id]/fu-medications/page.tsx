@@ -13,6 +13,8 @@ import { DictationTextarea as Textarea } from "@/components/ui/dictation-textare
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { InfoTip } from "@/components/ui/info-tip";
+import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
 import {
   Select,
   SelectContent,
@@ -37,7 +39,7 @@ export default function FuMedicationsPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h2 className="text-xl font-bold">Medication Review</h2>
+        <h2 className="text-xl font-bold">Medication Review <InfoTip content={TOOLTIP.medications.section} /></h2>
         <p className="text-sm text-muted-foreground">
           Document every current medication with response, tolerability, and planned action.
         </p>
@@ -81,7 +83,7 @@ export default function FuMedicationsPage() {
               )}
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Acute Medication (days/month)</h3>
+                <h3 className="text-sm font-semibold mb-3">Acute Medication (days/month) <InfoTip content={TOOLTIP.medications.acuteMedication} /></h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <NumberField label="Triptan" value={v.triptan_days_per_month as number | undefined} onChange={(val) => set("triptan_days_per_month", val)} min={0} max={31} unit="days/mo" />
@@ -103,7 +105,7 @@ export default function FuMedicationsPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Treatment Response</h3>
+                <h3 className="text-sm font-semibold mb-3">Treatment Response <InfoTip content={TOOLTIP.medications.treatmentResponse} /></h3>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <ToggleField label="Response to triptan" checked={!!v.response_to_triptan} onCheckedChange={(c) => set("response_to_triptan", c)} />
                   <ToggleField label="Response to oxygen" description="High-flow O₂ (cluster)" checked={!!v.response_to_oxygen} onCheckedChange={(c) => set("response_to_oxygen", c)} />
@@ -113,7 +115,7 @@ export default function FuMedicationsPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Per-Drug Review</h3>
+                  <h3 className="text-sm font-semibold">Per-Drug Review <InfoTip content={TOOLTIP.medications.perDrugReview} /></h3>
                   <Button
                     type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs"
                     onClick={() => set("medications", [...medications, { drug: "", type: "acute", dose: "", benefit: "", tolerability: "", action: "continue", notes: "" }])}
