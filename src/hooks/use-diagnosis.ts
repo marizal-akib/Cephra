@@ -3,12 +3,25 @@
 import { useMemo } from "react";
 import { runDiagnosticEngine } from "@/lib/engine";
 import type { DiagnosticInput, DiagnosticOutput } from "@/lib/engine/types";
-import type { ClinicianAssessment } from "@/types";
+import type { ClinicianAssessment, FollowUpAssessment } from "@/types";
+import { followUpToDiagnosticInput } from "@/lib/follow-up/diagnostic-input-mapper";
 
 export function useDiagnosis(
-  assessment: ClinicianAssessment | null
+  assessment: ClinicianAssessment | null,
+  followUpAssessment?: FollowUpAssessment | null
 ): DiagnosticOutput | null {
   return useMemo(() => {
+    // Follow-up path
+    if (followUpAssessment) {
+      const input = followUpToDiagnosticInput(followUpAssessment);
+      const hasData = Object.values(input).some(
+        (section) => Object.keys(section).length > 0
+      );
+      if (!hasData) return null;
+      return runDiagnosticEngine(input);
+    }
+
+    // Initial assessment path
     if (!assessment) return null;
 
     const input: DiagnosticInput = {
@@ -30,5 +43,5 @@ export function useDiagnosis(
     if (!hasData) return null;
 
     return runDiagnosticEngine(input);
-  }, [assessment]);
+  }, [assessment, followUpAssessment]);
 }

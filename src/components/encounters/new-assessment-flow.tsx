@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
   Check,
@@ -47,6 +47,14 @@ type SelectedPatient = {
   contact: string | null;
 };
 
+type PastEncounter = {
+  id: string;
+  created_at: string;
+  status: string;
+  encounter_type: string;
+  diagnosis_template: string | null;
+};
+
 type CreatedAssessment = {
   encounterId: string;
   assessmentRef: string;
@@ -54,27 +62,75 @@ type CreatedAssessment = {
   createdAt: string;
   questionnaireUrl: string | null;
   patientEmail: string | null;
+  encounterType: "initial" | "follow_up";
 };
 
-type Step = "patient" | "record" | "questionnaire" | "complete";
+type Step = "patient" | "encounter-type" | "record" | "questionnaire" | "complete";
 
 // ---------------------------------------------------------------------------
 // Main flow
 // ---------------------------------------------------------------------------
 
 export function NewAssessmentFlow() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("patient");
   const [selectedPatient, setSelectedPatient] = useState<SelectedPatient | null>(null);
+  const [encounterType, setEncounterType] = useState<"initial" | "follow_up">("initial");
+  const [parentEncounterId, setParentEncounterId] = useState<string | null>(null);
+  const [diagnosisTemplate, setDiagnosisTemplate] = useState<string | null>(null);
   const [assessment, setAssessment] = useState<CreatedAssessment | null>(null);
+  const [preloadAttempted, setPreloadAttempted] = useState(false);
+
+  // Pre-select patient from query params (e.g. from "New Follow-up" button)
+  useEffect(() => {
+    if (preloadAttempted) return;
+    const patientId = searchParams.get("patient_id");
+    const typeParam = searchParams.get("type");
+    if (!patientId) {
+      setPreloadAttempted(true);
+      return;
+    }
+    const supabase = createClient();
+    supabase
+      .from("patients")
+      .select("id, first_name, last_name, date_of_birth, sex, mrn, contact")
+      .eq("id", patientId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setPreloadAttempted(true);
+        if (data) {
+          setSelectedPatient(data as SelectedPatient);
+          if (typeParam === "follow_up") {
+            setEncounterType("follow_up");
+          }
+          setStep("encounter-type");
+        }
+      });
+  }, [searchParams, preloadAttempted]);
 
   function handlePatientSelected(patient: SelectedPatient) {
     setSelectedPatient(patient);
+    setStep("encounter-type");
+  }
+
+  function handleEncounterTypeSelected(
+    type: "initial" | "follow_up",
+    parentId: string | null,
+    template: string | null
+  ) {
+    setEncounterType(type);
+    setParentEncounterId(parentId);
+    setDiagnosisTemplate(template);
     setStep("record");
   }
 
   function handleAssessmentCreated(data: CreatedAssessment) {
     setAssessment(data);
-    setStep("questionnaire");
+    if (data.encounterType === "follow_up") {
+      setStep("complete");
+    } else {
+      setStep("questionnaire");
+    }
   }
 
   return (
@@ -91,17 +147,31 @@ export function NewAssessmentFlow() {
           <div>
             <h1 className="font-semibold tracking-tight">Create New Assessment</h1>
             <p className="text-sm text-muted-foreground">
-              Link a patient and generate a questionnaire
+              {encounterType === "follow_up"
+                ? "Create a follow-up review for an existing patient"
+                : "Link a patient and generate a questionnaire"}
             </p>
           </div>
         </div>
       </header>
 
-      <StepIndicator current={step} />
+      <StepIndicator current={step} encounterType={encounterType} />
 
       {step === "patient" && <PatientStep onSelect={handlePatientSelected} />}
+      {step === "encounter-type" && selectedPatient && (
+        <EncounterTypeStep
+          patient={selectedPatient}
+          onSelect={handleEncounterTypeSelected}
+        />
+      )}
       {step === "record" && selectedPatient && (
-        <RecordStep patient={selectedPatient} onCreate={handleAssessmentCreated} />
+        <RecordStep
+          patient={selectedPatient}
+          encounterType={encounterType}
+          parentEncounterId={parentEncounterId}
+          diagnosisTemplate={diagnosisTemplate}
+          onCreate={handleAssessmentCreated}
+        />
       )}
       {step === "questionnaire" && assessment && (
         <QuestionnaireStep
@@ -120,14 +190,23 @@ export function NewAssessmentFlow() {
 // Step indicator
 // ---------------------------------------------------------------------------
 
-const STEPS: { key: Step; label: string }[] = [
+const INITIAL_STEPS: { key: Step; label: string }[] = [
   { key: "patient", label: "Patient" },
+  { key: "encounter-type", label: "Type" },
   { key: "record", label: "Assessment" },
   { key: "questionnaire", label: "Questionnaire" },
   { key: "complete", label: "Done" },
 ];
 
-function StepIndicator({ current }: { current: Step }) {
+const FOLLOWUP_FLOW_STEPS: { key: Step; label: string }[] = [
+  { key: "patient", label: "Patient" },
+  { key: "encounter-type", label: "Type" },
+  { key: "record", label: "Review" },
+  { key: "complete", label: "Done" },
+];
+
+function StepIndicator({ current, encounterType }: { current: Step; encounterType?: string }) {
+  const STEPS = encounterType === "follow_up" ? FOLLOWUP_FLOW_STEPS : INITIAL_STEPS;
   const currentIdx = STEPS.findIndex((s) => s.key === current);
 
   return (
@@ -456,11 +535,171 @@ function CreatePatientPanel({ onCreated }: { onCreated: (p: SelectedPatient) => 
 // Step 2 — Assessment record
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Step 2b — Encounter type selection (initial vs follow-up)
+// ---------------------------------------------------------------------------
+
+function EncounterTypeStep({
+  patient,
+  onSelect,
+}: {
+  patient: SelectedPatient;
+  onSelect: (type: "initial" | "follow_up", parentId: string | null, template: string | null) => void;
+}) {
+  const supabase = useMemo(() => createClient(), []);
+  const [pastEncounters, setPastEncounters] = useState<PastEncounter[]>([]);
+  const [loadingPast, setLoadingPast] = useState(true);
+  const [selectedParent, setSelectedParent] = useState<string>("");
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("encounters")
+        .select("id, created_at, status, encounter_type, diagnosis_template")
+        .eq("patient_id", patient.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      setPastEncounters((data as PastEncounter[]) ?? []);
+      if (data && data.length > 0) {
+        setSelectedParent(data[0].id);
+      }
+      setLoadingPast(false);
+    })();
+  }, [supabase, patient.id]);
+
+  const TEMPLATE_OPTIONS = [
+    { value: "migraine", label: "Migraine" },
+    { value: "tension_type", label: "Tension-Type Headache" },
+    { value: "cluster", label: "Cluster Headache" },
+    { value: "tac", label: "TAC Spectrum" },
+    { value: "medication_overuse", label: "Medication Overuse" },
+    { value: "cervicogenic", label: "Cervicogenic Headache" },
+    { value: "occipital_neuralgia", label: "Occipital Neuralgia" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Encounter Type</CardTitle>
+          <CardDescription>
+            Is this a new initial consultation or a follow-up review?
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              className="rounded-lg border-2 border-border p-4 text-left transition-colors hover:border-primary hover:bg-accent/50"
+              onClick={() => onSelect("initial", null, null)}
+            >
+              <p className="font-medium">Initial Consultation</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Full history, examination, and baseline letter
+              </p>
+            </button>
+
+            <button
+              type="button"
+              className="rounded-lg border-2 border-border p-4 text-left transition-colors hover:border-primary hover:bg-accent/50 disabled:opacity-50"
+              disabled={pastEncounters.length === 0 && !loadingPast}
+              onClick={() => {
+                if (pastEncounters.length === 0) return;
+                // Show the follow-up config below instead of navigating
+                document.getElementById("followup-config")?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <p className="font-medium">Follow-up Review</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {pastEncounters.length === 0 && !loadingPast
+                  ? "No prior encounters — initial consultation required first"
+                  : "Track progress, adjust treatment, safety screening"}
+              </p>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {pastEncounters.length > 0 && (
+        <Card id="followup-config">
+          <CardHeader>
+            <CardTitle className="text-base">Follow-up Configuration</CardTitle>
+            <CardDescription>
+              Select the baseline encounter and diagnosis template for this follow-up.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Baseline Encounter</Label>
+              <Select value={selectedParent} onValueChange={setSelectedParent}>
+                <SelectTrigger><SelectValue placeholder="Select baseline encounter" /></SelectTrigger>
+                <SelectContent>
+                  {pastEncounters.map((enc) => (
+                    <SelectItem key={enc.id} value={enc.id}>
+                      {new Date(enc.created_at).toLocaleDateString("en-GB")} — {enc.status}
+                      {enc.encounter_type === "follow_up" ? " (follow-up)" : " (initial)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                The encounter whose data will be used for trend comparison.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Diagnosis Template</Label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger><SelectValue placeholder="Select template (optional)" /></SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Tailors the follow-up forms and red flag checklist to the diagnosis. Can be changed later.
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={() =>
+                onSelect(
+                  "follow_up",
+                  selectedParent || null,
+                  selectedTemplate || null
+                )
+              }
+              disabled={!selectedParent}
+            >
+              Continue as Follow-up
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step 3 — Assessment record
+// ---------------------------------------------------------------------------
+
 function RecordStep({
   patient,
+  encounterType = "initial",
+  parentEncounterId = null,
+  diagnosisTemplate = null,
   onCreate,
 }: {
   patient: SelectedPatient;
+  encounterType?: "initial" | "follow_up";
+  parentEncounterId?: string | null;
+  diagnosisTemplate?: string | null;
   onCreate: (data: CreatedAssessment) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -478,42 +717,68 @@ function RecordStep({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      const insertPayload: Record<string, unknown> = {
+        clinician_id: user.id,
+        patient_id: patient.id,
+        encounter_type: encounterType,
+      };
+      if (encounterType === "follow_up" && parentEncounterId) {
+        insertPayload.parent_encounter_id = parentEncounterId;
+      }
+      if (diagnosisTemplate) {
+        insertPayload.diagnosis_template = diagnosisTemplate;
+      }
+
       const { data: encounter, error: encErr } = await supabase
         .from("encounters")
-        .insert({
-          clinician_id: user.id,
-          patient_id: patient.id,
-        })
+        .insert(insertPayload)
         .select()
         .single();
       if (encErr) throw encErr;
 
-      await supabase.from("clinician_assessments").insert({
-        encounter_id: encounter.id,
-        clinician_notes: notes || null,
-      });
+      if (encounterType === "follow_up") {
+        // Create follow-up assessment record
+        await supabase.from("follow_up_assessments").insert({
+          encounter_id: encounter.id,
+        });
 
-      const { data: token, error: tokenErr } = await supabase
-        .from("questionnaire_tokens")
-        .insert({ encounter_id: encounter.id })
-        .select()
-        .single();
+        onCreate({
+          encounterId: encounter.id,
+          assessmentRef: encounter.id.slice(0, 8).toUpperCase(),
+          patientName: `${patient.first_name} ${patient.last_name}`,
+          createdAt: encounter.created_at,
+          questionnaireUrl: null,
+          patientEmail: null,
+          encounterType: "follow_up",
+        });
+      } else {
+        // Create initial assessment + questionnaire token
+        await supabase.from("clinician_assessments").insert({
+          encounter_id: encounter.id,
+          clinician_notes: notes || null,
+        });
 
-      if (tokenErr) throw tokenErr;
+        const { data: token, error: tokenErr } = await supabase
+          .from("questionnaire_tokens")
+          .insert({ encounter_id: encounter.id })
+          .select()
+          .single();
 
-      const url = generateQuestionnaireUrl(token.token);
+        if (tokenErr) throw tokenErr;
 
-      // Use contact as email only if it looks like an email address
-      const email = patient.contact?.includes("@") ? patient.contact : null;
+        const url = generateQuestionnaireUrl(token.token);
+        const email = patient.contact?.includes("@") ? patient.contact : null;
 
-      onCreate({
-        encounterId: encounter.id,
-        assessmentRef: encounter.id.slice(0, 8).toUpperCase(),
-        patientName: `${patient.first_name} ${patient.last_name}`,
-        createdAt: encounter.created_at,
-        questionnaireUrl: url,
-        patientEmail: email,
-      });
+        onCreate({
+          encounterId: encounter.id,
+          assessmentRef: encounter.id.slice(0, 8).toUpperCase(),
+          patientName: `${patient.first_name} ${patient.last_name}`,
+          createdAt: encounter.created_at,
+          questionnaireUrl: url,
+          patientEmail: email,
+          encounterType: "initial",
+        });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create assessment");
     } finally {
@@ -524,9 +789,11 @@ function RecordStep({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Assessment Details</CardTitle>
+        <CardTitle className="text-base">
+          {encounterType === "follow_up" ? "Follow-up Review Details" : "Assessment Details"}
+        </CardTitle>
         <CardDescription>
-          Review the details below and create the assessment record.
+          Review the details below and create the {encounterType === "follow_up" ? "follow-up" : "assessment"} record.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -544,13 +811,13 @@ function RecordStep({
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground">Assessment Date</p>
+            <p className="text-muted-foreground">Date</p>
             <p className="font-medium">{formatDate(new Date())}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Status</p>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-              Waiting for Response
+            <p className="text-muted-foreground">Type</p>
+            <Badge variant="secondary" className={encounterType === "follow_up" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}>
+              {encounterType === "follow_up" ? "Follow-up Review" : "Initial Consultation"}
             </Badge>
           </div>
         </div>
@@ -563,7 +830,7 @@ function RecordStep({
             id="rec-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any initial notes for this assessment..."
+            placeholder={encounterType === "follow_up" ? "Any notes for this follow-up review..." : "Any initial notes for this assessment..."}
             rows={3}
           />
         </div>
@@ -574,8 +841,10 @@ function RecordStep({
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Creating Assessment...
+              Creating...
             </>
+          ) : encounterType === "follow_up" ? (
+            "Create Follow-up"
           ) : (
             "Create Assessment"
           )}
@@ -723,6 +992,8 @@ function QuestionnaireStep({
 
 function CompleteStep({ assessment }: { assessment: CreatedAssessment }) {
   const router = useRouter();
+  const isFollowUp = assessment.encounterType === "follow_up";
+  const firstPath = isFollowUp ? "review" : "intake";
 
   return (
     <Card>
@@ -730,17 +1001,20 @@ function CompleteStep({ assessment }: { assessment: CreatedAssessment }) {
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-flag-soft">
           <Check className="h-6 w-6 text-green-flag" />
         </div>
-        <CardTitle className="text-lg">Assessment Created Successfully</CardTitle>
+        <CardTitle className="text-lg">
+          {isFollowUp ? "Follow-up Created Successfully" : "Assessment Created Successfully"}
+        </CardTitle>
         <CardDescription>
-          Assessment <span className="font-medium">{assessment.assessmentRef}</span> for{" "}
-          <span className="font-medium">{assessment.patientName}</span> is now active
-          and awaiting patient response.
+          {isFollowUp ? "Follow-up review" : "Assessment"}{" "}
+          <span className="font-medium">{assessment.assessmentRef}</span> for{" "}
+          <span className="font-medium">{assessment.patientName}</span>{" "}
+          {isFollowUp ? "is ready for review." : "is now active and awaiting patient response."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 sm:flex-row sm:justify-center">
         <Button asChild>
-          <Link href={`/encounters/${assessment.encounterId}/intake`}>
-            Open Assessment
+          <Link href={`/encounters/${assessment.encounterId}/${firstPath}`}>
+            {isFollowUp ? "Start Follow-up" : "Open Assessment"}
           </Link>
         </Button>
         <Button

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, XCircle, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -69,20 +69,44 @@ export default function MedsPage() {
           const simpleDays = (v.simple_analgesic_days_per_month as number) || 0;
           const comboDays = (v.combination_analgesic_days_per_month as number) || 0;
 
-          const mohRisk =
+          const paracetamolDays = (v.paracetamol_days_per_month as number) || 0;
+          const nsaidDays = (v.nsaid_days_per_month as number) || 0;
+
+          const mohOveruse =
             triptanDays >= 10 ||
             opioidDays >= 10 ||
             comboDays >= 10 ||
-            simpleDays >= 15;
+            simpleDays >= 15 ||
+            paracetamolDays >= 15 ||
+            nsaidDays >= 15;
+
+          const patternData = (assessment?.pattern || {}) as Record<string, unknown>;
+          const hdpm = typeof patternData.headache_days_per_month === "number" ? patternData.headache_days_per_month : null;
+          const mohFrequency = hdpm !== null && hdpm >= 15;
+          const mohPreExisting = patternData.pre_existing_primary_headache === true;
 
           return (
             <div className="space-y-6">
-              {mohRisk && (
+              {mohOveruse && (
                 <Alert className="border-amber-500 bg-amber-50">
                   <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-800">
-                    Medication overuse thresholds crossed. This may contribute to
-                    or cause chronic headache.
+                  <AlertDescription className="text-amber-800 space-y-2">
+                    <p className="font-medium">Medication overuse threshold reached — consider MOH.</p>
+                    <p className="text-xs">All three ICHD-3 criteria are required for MOH to appear as a diagnostic suggestion:</p>
+                    <ul className="text-xs space-y-1">
+                      <li className="flex items-center gap-1.5">
+                        {mohOveruse ? <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" /> : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                        Acute medication overuse above threshold
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        {mohFrequency ? <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" /> : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                        Headache {"\u2265"}15 days/month{hdpm === null ? " (not yet recorded — Pattern section)" : mohFrequency ? ` (${hdpm} days)` : ` (${hdpm} days — below threshold)`}
+                      </li>
+                      <li className="flex items-center gap-1.5">
+                        {mohPreExisting ? <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" /> : <XCircle className="h-3 w-3 text-red-500 shrink-0" />}
+                        Pre-existing primary headache disorder{!mohPreExisting ? " (not set — Pattern section)" : ""}
+                      </li>
+                    </ul>
                   </AlertDescription>
                 </Alert>
               )}

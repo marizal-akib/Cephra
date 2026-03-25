@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useMemo } from "react";
+import { useEffect, useCallback, useRef, useMemo, useState } from "react";
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -41,36 +41,57 @@ export function EncounterFormWrapper({
   });
 
   // Sync form with defaultValues when assessment data loads after initial mount
+  // Guard against resetting when our own onDataChange data round-trips through the parent
   const defaultValuesKey = JSON.stringify(defaultValues);
   const prevDefaultValuesKeyRef = useRef(defaultValuesKey);
+  const stableDataRef = useRef<Record<string, unknown>>(defaultValues);
   useEffect(() => {
     if (prevDefaultValuesKeyRef.current !== defaultValuesKey) {
       prevDefaultValuesKeyRef.current = defaultValuesKey;
-      form.reset(defaultValues);
+      // Only reset if the incoming defaults actually differ from current form data
+      if (JSON.stringify(stableDataRef.current) !== defaultValuesKey) {
+        form.reset(defaultValues);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultValuesKey, form]);
 
-  const watchedData = form.watch();
+  // ── Autosave ──
+  // Use a debounced data signal to trigger the autosave timer.
+  // updateData keeps the save ref fresh immediately so saveNow always has latest data.
+  const [autosaveData, setAutosaveData] = useState<Record<string, unknown>>(defaultValues);
 
-  // Stabilize watchedData to prevent infinite re-renders
-  const prevDataRef = useRef<string>("");
-  const stableDataRef = useRef<Record<string, unknown>>(watchedData as Record<string, unknown>);
-  const serialized = JSON.stringify(watchedData);
-  if (serialized !== prevDataRef.current) {
-    prevDataRef.current = serialized;
-    stableDataRef.current = watchedData as Record<string, unknown>;
-  }
-
-  const { saving, lastSaved, saveNow } = useAutosave({
+  const { saving, lastSaved, saveNow, updateData } = useAutosave({
     encounterId,
     section,
-    data: stableDataRef.current,
+    data: autosaveData,
   });
 
+  // ── Subscription-based form watching ──
+  // form.watch(callback) does NOT cause re-renders of this wrapper.
+  // Only the child form component (which has its own form.watch()) re-renders per keystroke.
+  const onDataChangeRef = useRef(onDataChange);
+  onDataChangeRef.current = onDataChange;
+  const propagateTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    onDataChange?.(stableDataRef.current);
-  }, [serialized, onDataChange]);
+    const sub = form.watch((formData) => {
+      const data = formData as Record<string, unknown>;
+      stableDataRef.current = data;
+      updateData(data); // keep autosave data ref fresh immediately
+      // Debounce parent notification + autosave trigger to avoid per-keystroke
+      // re-renders of the layout (which would re-run the diagnostic engine)
+      if (propagateTimerRef.current) clearTimeout(propagateTimerRef.current);
+      propagateTimerRef.current = setTimeout(() => {
+        onDataChangeRef.current?.(stableDataRef.current);
+        setAutosaveData(stableDataRef.current);
+      }, 300);
+    });
+    return () => {
+      sub.unsubscribe();
+      if (propagateTimerRef.current) clearTimeout(propagateTimerRef.current);
+    };
+  }, [form, updateData]);
 
   const currentStepKey = SECTION_TO_STEP[section as AssessmentSection] || section;
   const currentIdx = STEP_KEYS.indexOf(currentStepKey as (typeof STEP_KEYS)[number]);
@@ -98,19 +119,29 @@ export function EncounterFormWrapper({
       .then();
   }, [encounterId, section, currentStepKey, supabase, onEncounterStatusChange]);
 
-  const handleBack = useCallback(async () => {
+  // Flush pending propagation before navigation saves
+  const flushAndSave = useCallback(async () => {
+    if (propagateTimerRef.current) {
+      clearTimeout(propagateTimerRef.current);
+      propagateTimerRef.current = null;
+      onDataChangeRef.current?.(stableDataRef.current);
+    }
     await saveNow();
+  }, [saveNow]);
+
+  const handleBack = useCallback(async () => {
+    await flushAndSave();
     if (prevStep) {
       router.push(`/encounters/${encounterId}/${prevStep.path}`);
     }
-  }, [saveNow, prevStep, router, encounterId]);
+  }, [flushAndSave, prevStep, router, encounterId]);
 
   const handleNext = useCallback(async () => {
-    await saveNow();
+    await flushAndSave();
     if (nextStep) {
       router.push(`/encounters/${encounterId}/${nextStep.path}`);
     }
-  }, [saveNow, nextStep, router, encounterId, section, currentStepKey]);
+  }, [flushAndSave, nextStep, router, encounterId]);
 
   return (
     <div className="space-y-6">
@@ -134,7 +165,7 @@ export function EncounterFormWrapper({
           </span>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="outline" onClick={saveNow} disabled={saving}>
+          <Button variant="outline" onClick={flushAndSave} disabled={saving}>
             Save
           </Button>
           {nextStep && (

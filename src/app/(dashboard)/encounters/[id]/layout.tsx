@@ -6,9 +6,20 @@ import { useDiagnosis } from "@/hooks/use-diagnosis";
 import { StepNav, StepNavLinks } from "@/components/layout/step-nav";
 import { DiagnosisRail, DiagnosisRailContent } from "@/components/layout/diagnosis-rail";
 import { createContext, useContext, useCallback, useState } from "react";
-import { ENCOUNTER_STEPS, SECTION_TO_STEP } from "@/types";
-import type { Encounter, ClinicianAssessment, QuestionnaireResponse } from "@/types";
+import {
+  ENCOUNTER_STEPS,
+  FOLLOWUP_STEPS,
+  SECTION_TO_STEP,
+  FOLLOWUP_SECTION_TO_STEP,
+} from "@/types";
+import type {
+  Encounter,
+  ClinicianAssessment,
+  FollowUpAssessment,
+  QuestionnaireResponse,
+} from "@/types";
 import type { DiagnosticOutput } from "@/lib/engine/types";
+import type { BaselineValues } from "@/lib/follow-up/baseline-adapter";
 import { usePathname } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -18,10 +29,16 @@ interface EncounterContextValue {
   encounterId: string;
   encounter: Encounter | null;
   assessment: ClinicianAssessment | null;
+  followUpAssessment: FollowUpAssessment | null;
+  baseline: BaselineValues | null;
   questionnaireResponse: QuestionnaireResponse | null;
   diagnosticOutput: DiagnosticOutput | null;
   loading: boolean;
   updateAssessmentLocal: (
+    section: string,
+    data: Record<string, unknown>
+  ) => void;
+  updateFollowUpLocal: (
     section: string,
     data: Record<string, unknown>
   ) => void;
@@ -49,9 +66,24 @@ export default function EncounterLayout({
 }) {
   const pathname = usePathname();
   const { id } = use(params);
-  const { encounter, assessment, questionnaireResponse, loading, refetch } = useEncounter(id);
+  const {
+    encounter,
+    assessment,
+    followUpAssessment,
+    baseline,
+    questionnaireResponse,
+    loading,
+    refetch,
+  } = useEncounter(id);
+
+  const isFollowUp = encounter?.encounter_type === "follow_up";
+  const steps = isFollowUp ? FOLLOWUP_STEPS : ENCOUNTER_STEPS;
+  const sectionToStep = isFollowUp ? FOLLOWUP_SECTION_TO_STEP : SECTION_TO_STEP;
+
   const [localAssessment, setLocalAssessment] =
     useState<ClinicianAssessment | null>(null);
+  const [localFollowUp, setLocalFollowUp] =
+    useState<FollowUpAssessment | null>(null);
   const [localEncounterUpdates, setLocalEncounterUpdates] =
     useState<Partial<Pick<Encounter, "status" | "current_step">>>({});
 
@@ -64,8 +96,13 @@ export default function EncounterLayout({
     ? { ...assessment, ...localAssessment }
     : assessment;
 
+  const mergedFollowUp = localFollowUp
+    ? { ...followUpAssessment, ...localFollowUp }
+    : followUpAssessment;
+
   const diagnosticOutput = useDiagnosis(
-    mergedAssessment as ClinicianAssessment | null
+    mergedAssessment as ClinicianAssessment | null,
+    mergedFollowUp as FollowUpAssessment | null
   );
 
   const updateAssessmentLocal = useCallback(
@@ -78,6 +115,16 @@ export default function EncounterLayout({
     [assessment]
   );
 
+  const updateFollowUpLocal = useCallback(
+    (section: string, data: Record<string, unknown>) => {
+      setLocalFollowUp((prev) => ({
+        ...(prev || (followUpAssessment as FollowUpAssessment)),
+        [section]: data,
+      }));
+    },
+    [followUpAssessment]
+  );
+
   const updateEncounterLocal = useCallback(
     (updates: Partial<Pick<Encounter, "status" | "current_step">>) => {
       setLocalEncounterUpdates((prev) => ({ ...prev, ...updates }));
@@ -85,21 +132,41 @@ export default function EncounterLayout({
     []
   );
 
-  const completedSteps = assessment
-    ? Object.entries(assessment)
-        .filter(
-          ([key, val]) =>
-            key in SECTION_TO_STEP &&
-            val &&
-            typeof val === "object" &&
-            Object.keys(val as object).length > 0
-        )
-        .map(([key]) => SECTION_TO_STEP[key as keyof typeof SECTION_TO_STEP])
-    : [];
+  // Compute completed steps based on encounter type
+  const completedSteps = isFollowUp
+    ? followUpAssessment
+      ? Object.entries(followUpAssessment)
+          .filter(
+            ([key, val]) =>
+              key in sectionToStep &&
+              val &&
+              typeof val === "object" &&
+              Object.keys(val as object).length > 0
+          )
+          .map(
+            ([key]) =>
+              sectionToStep[key as keyof typeof sectionToStep]
+          )
+      : []
+    : assessment
+      ? Object.entries(assessment)
+          .filter(
+            ([key, val]) =>
+              key in sectionToStep &&
+              val &&
+              typeof val === "object" &&
+              Object.keys(val as object).length > 0
+          )
+          .map(
+            ([key]) =>
+              sectionToStep[key as keyof typeof sectionToStep]
+          )
+      : [];
 
+  const stepKeys = steps.map((s) => s.key);
   const currentStep =
-    ENCOUNTER_STEPS.find((step) => pathname.endsWith(`/${step.path}`)) ??
-    ENCOUNTER_STEPS.find((step) => step.key === "intake");
+    steps.find((step) => pathname.endsWith(`/${step.path}`)) ??
+    steps.find((step) => step.key === stepKeys[0]);
 
   if (loading) {
     return (
@@ -123,10 +190,13 @@ export default function EncounterLayout({
         encounterId: id,
         encounter: mergedEncounter,
         assessment: mergedAssessment as ClinicianAssessment | null,
+        followUpAssessment: mergedFollowUp as FollowUpAssessment | null,
+        baseline,
         questionnaireResponse,
         diagnosticOutput,
         loading,
         updateAssessmentLocal,
+        updateFollowUpLocal,
         updateEncounterLocal,
         refetch,
       }}
@@ -142,12 +212,15 @@ export default function EncounterLayout({
             </SheetTrigger>
             <SheetContent side="left" className="w-[280px] p-0">
               <SheetHeader className="border-b border-border px-4 py-3">
-                <SheetTitle>Assessment Steps</SheetTitle>
+                <SheetTitle>
+                  {isFollowUp ? "Follow-up Steps" : "Assessment Steps"}
+                </SheetTitle>
               </SheetHeader>
               <StepNavLinks
                 encounterId={id}
                 completedSteps={completedSteps}
                 redFlagged={diagnosticOutput?.redFlagResult.flagged}
+                steps={isFollowUp ? [...FOLLOWUP_STEPS] : undefined}
               />
             </SheetContent>
           </Sheet>
@@ -173,6 +246,7 @@ export default function EncounterLayout({
           encounterId={id}
           completedSteps={completedSteps}
           redFlagged={diagnosticOutput?.redFlagResult.flagged}
+          steps={isFollowUp ? [...FOLLOWUP_STEPS] : undefined}
         />
         <div className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</div>
         <DiagnosisRail output={diagnosticOutput} />

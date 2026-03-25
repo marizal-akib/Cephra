@@ -25,6 +25,11 @@ export function useAutosave({
   const dataRef = useRef(data);
   dataRef.current = data;
 
+  // Imperatively update data ref (for callers using subscription-based watching)
+  const updateData = useCallback((newData: Record<string, unknown>) => {
+    dataRef.current = newData;
+  }, []);
+
   const save = useCallback(async () => {
     if (!enabled) return;
     setSaving(true);
@@ -60,5 +65,5 @@ export function useAutosave({
     await save();
   }, [save]);
 
-  return { saving, lastSaved, saveNow };
+  return { saving, lastSaved, saveNow, updateData };
 }

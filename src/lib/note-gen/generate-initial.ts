@@ -31,6 +31,10 @@ function num(val: unknown): number | null {
   return typeof val === "number" ? val : null;
 }
 
+function pluralUnit(value: number, unit: string): string {
+  return value === 1 ? `${value} ${unit}` : `${value} ${unit}s`;
+}
+
 function describeLocation(pain: Record<string, unknown>): string {
   const parts: string[] = [];
   if (pain.unilateral === true) parts.push("unilateral");
@@ -163,6 +167,15 @@ function generateMedicationAndAllergy(ctx: NoteContext): string {
   const meds = (ctx.assessment.medications || {}) as Record<string, unknown>;
   const parts: string[] = [];
 
+  // Allergy status
+  const allergyStatus = str(meds.allergy_status);
+  const allergyDetails = str(meds.allergy_details);
+  if (allergyStatus === "nkda" || (!allergyStatus && !allergyDetails)) {
+    parts.push("Allergies: No known drug allergies recorded.");
+  } else if (allergyStatus || allergyDetails) {
+    parts.push(`Allergies: ${allergyDetails || allergyStatus}.`);
+  }
+
   // Structured medication actions table
   interface MedAction {
     drug: string;
@@ -188,7 +201,7 @@ function generateMedicationAndAllergy(ctx: NoteContext): string {
   if (num(meds.triptan_days_per_month) !== null)
     acuteEntries.push(`Triptans ${meds.triptan_days_per_month} days/month${(meds.triptan_days_per_month as number) >= 10 ? " [overuse risk]" : ""}`);
   if (num(meds.nsaid_days_per_month) !== null)
-    acuteEntries.push(`NSAIDs ${meds.nsaid_days_per_month} days/month`);
+    acuteEntries.push(`NSAIDs ${meds.nsaid_days_per_month} days/month${(meds.nsaid_days_per_month as number) >= 15 ? " [overuse risk]" : ""}`);
   if (num(meds.paracetamol_days_per_month) !== null)
     acuteEntries.push(`Paracetamol ${meds.paracetamol_days_per_month} days/month${(meds.paracetamol_days_per_month as number) >= 15 ? " [overuse risk]" : ""}`);
   if (num(meds.opioid_days_per_month) !== null)
@@ -247,8 +260,14 @@ function generatePresentingSymptoms(ctx: NoteContext): string {
 
   // Onset and temporal profile
   const onsetParts: string[] = [];
-  if (num(pattern.first_headache_age) !== null)
-    onsetParts.push(`first onset at age ${pattern.first_headache_age}`);
+  const firstOnsetAge = num(pattern.first_headache_age);
+  if (firstOnsetAge !== null) {
+    if (ctx.age !== undefined && firstOnsetAge > ctx.age) {
+      onsetParts.push(`first onset at age ${firstOnsetAge} [query: exceeds current age ${ctx.age}]`);
+    } else {
+      onsetParts.push(`first onset at age ${firstOnsetAge}`);
+    }
+  }
   if (str(pattern.current_pattern_start))
     onsetParts.push(`current pattern since ${pattern.current_pattern_start}`);
   if (num(pattern.pattern_duration_months) !== null)
@@ -273,8 +292,8 @@ function generatePresentingSymptoms(ctx: NoteContext): string {
 
   // Duration
   const durParts: string[] = [];
-  if (num(pattern.duration_hours) !== null) durParts.push(`${pattern.duration_hours} hours`);
-  if (num(pattern.duration_minutes) !== null) durParts.push(`${pattern.duration_minutes} minutes`);
+  if (num(pattern.duration_hours) !== null) durParts.push(pluralUnit(pattern.duration_hours as number, "hour"));
+  if (num(pattern.duration_minutes) !== null) durParts.push(pluralUnit(pattern.duration_minutes as number, "minute"));
   if (durParts.length > 0) lines.push(`Typical duration: ${durParts.join(", ")}.`);
 
   // Location, severity, quality
@@ -502,7 +521,7 @@ function generateResultsReview(ctx: NoteContext): string {
     ? (workupData.investigation_results as InvResult[]).filter((r) => r.name)
     : [];
 
-  if (results.length === 0) return "";
+  if (results.length === 0) return "No results available for review at this stage.";
 
   const lines: string[] = [];
   for (const r of results) {
@@ -518,13 +537,10 @@ function generateRedFlags(ctx: NoteContext): string {
   const lines: string[] = [];
 
   const presentFlags: string[] = [];
-  const absentFlags: string[] = [];
 
   for (const field of RED_FLAG_FIELDS) {
     if (redFlags[field.name] === true) {
       presentFlags.push(field.label);
-    } else {
-      absentFlags.push(field.label);
     }
   }
 
@@ -538,16 +554,9 @@ function generateRedFlags(ctx: NoteContext): string {
   }
 
   if (presentFlags.length > 0) {
-    lines.push("Present / concerning:");
     presentFlags.forEach((f) => lines.push(`- ${f}`));
-  }
-
-  lines.push("");
-  lines.push("Absent / specifically screened:");
-  if (absentFlags.length > 0) {
-    absentFlags.forEach((f) => lines.push(`- ${f}`));
   } else {
-    lines.push("All screened red flags are present (see above).");
+    lines.push("No current red flags identified on today's review.");
   }
 
   const notes = str(redFlags.notes);
@@ -566,9 +575,17 @@ function generateManagementPlan(ctx: NoteContext): string {
   const followUp = (ctx.assessment.follow_up || {}) as Record<string, unknown>;
   const lines: string[] = [];
 
-  // Assessment summary
+  // Assessment summary — fall back to working diagnosis to prevent disconnected output
   const summary = str(workupData.assessment_summary);
-  if (summary) lines.push(summary);
+  if (summary) {
+    lines.push(summary);
+  } else {
+    const phenotypes = ctx.diagnosticOutput.phenotypes;
+    if (phenotypes.length > 0) {
+      const top = phenotypes[0];
+      lines.push(`Working impression: ${top.label} (${top.confidence} confidence). Management plan based on this diagnosis.`);
+    }
+  }
 
   // Key diagnostic question
   const keyQ = str(workupData.key_diagnostic_question);
@@ -620,18 +637,23 @@ function generateFollowUpPlan(ctx: NoteContext): string {
 
   if (lines.length === 0) lines.push("Follow-up not yet scheduled.");
 
-  // Sign-off
+  return lines.join("\n");
+}
+
+// ── Section 12: Clinician Sign-off ──
+
+function generateClinicianSignOff(ctx: NoteContext): string {
   const name = ctx.clinicianName?.trim() || "";
   const credentials = ctx.clinicianCredentials?.trim() || "";
   const designation = ctx.clinicianDesignation?.trim() || "";
-  if (name || credentials || designation) {
-    lines.push("");
-    lines.push("Kind regards,");
-    const identity = [name, credentials].filter(Boolean).join(", ");
-    lines.push(identity || "Clinician");
-    if (designation) lines.push(designation);
-  }
 
+  if (!name && !credentials && !designation) return "";
+
+  const lines: string[] = [];
+  lines.push("Kind regards,");
+  const identity = [name, credentials].filter(Boolean).join(", ");
+  lines.push(identity || "Clinician");
+  if (designation) lines.push(designation);
   return lines.join("\n");
 }
 
@@ -642,14 +664,15 @@ export function generateInitialClinicLetter(ctx: NoteContext): string {
     { heading: "PATIENT DETAILS", body: generatePatientDetails(ctx), hideWhenEmpty: false },
     { heading: "WORKING DIAGNOSIS", body: generateWorkingDiagnosis(ctx), hideWhenEmpty: false },
     { heading: "PAST MEDICAL HISTORY AND RELEVANT BACKGROUND", body: generatePMHAndBackground(ctx), hideWhenEmpty: false },
-    { heading: "CURRENT MEDICATION AND ALLERGY STATUS", body: generateMedicationAndAllergy(ctx), hideWhenEmpty: true },
+    { heading: "CURRENT MEDICATION AND ALLERGY STATUS", body: generateMedicationAndAllergy(ctx), hideWhenEmpty: false },
     { heading: "PRESENTING SYMPTOMS AND CLINICAL ANALYSIS", body: generatePresentingSymptoms(ctx), hideWhenEmpty: false },
+    { heading: "RED FLAG SYMPTOMS AND SIGNS", body: generateRedFlags(ctx), hideWhenEmpty: false },
     { heading: "CLINICAL EXAMINATION FINDINGS", body: generateClinicalExam(ctx), hideWhenEmpty: true },
     { heading: "INVESTIGATIONS ORDERED", body: generateInvestigationsOrdered(ctx), hideWhenEmpty: true },
-    { heading: "RESULTS REVIEW", body: generateResultsReview(ctx), hideWhenEmpty: true },
-    { heading: "RED FLAG SYMPTOMS AND SIGNS", body: generateRedFlags(ctx), hideWhenEmpty: false },
+    { heading: "RESULTS REVIEW", body: generateResultsReview(ctx), hideWhenEmpty: false },
     { heading: "MANAGEMENT PLAN AND TREATMENT", body: generateManagementPlan(ctx), hideWhenEmpty: true },
     { heading: "FOLLOW UP PLAN", body: generateFollowUpPlan(ctx), hideWhenEmpty: false },
+    { heading: "CLINICIAN SIGN OFF", body: generateClinicianSignOff(ctx), hideWhenEmpty: true },
   ];
 
   const header = "SPECIALIST HEADACHE CLINIC LETTER";

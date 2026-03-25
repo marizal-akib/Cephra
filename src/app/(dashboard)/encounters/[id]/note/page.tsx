@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEncounterContext } from "../layout";
-import { generateNote } from "@/lib/note-gen/generate";
 import { generateInitialClinicLetter } from "@/lib/note-gen/generate-initial";
 import { createClient } from "@/lib/supabase/client";
 import { DictationTextarea as Textarea } from "@/components/ui/dictation-textarea";
@@ -64,7 +63,6 @@ export default function NotePage() {
   const [noteContent, setNoteContent] = useState("");
   const [currentVersion, setCurrentVersion] = useState(1);
   const [editMode, setEditMode] = useState(false);
-  const [letterFormat, setLetterFormat] = useState<"follow_up" | "initial">("follow_up");
   const [clinicianName, setClinicianName] = useState("");
   const [clinicianCredentials, setClinicianCredentials] = useState("");
   const [clinicianDesignation, setClinicianDesignation] = useState("");
@@ -111,7 +109,7 @@ export default function NotePage() {
       consultationDate: encounter?.created_at,
       assessmentReference: assessmentReference(encounterId),
     };
-    return letterFormat === "initial" ? generateInitialClinicLetter(ctx) : generateNote(ctx);
+    return generateInitialClinicLetter(ctx);
   }, [
     assessment,
     diagnosticOutput,
@@ -125,7 +123,6 @@ export default function NotePage() {
     clinicianName,
     clinicianCredentials,
     clinicianDesignation,
-    letterFormat,
   ]);
 
   generatedContentRef.current = generatedContent;
@@ -395,32 +392,6 @@ export default function NotePage() {
           )}
         </div>
       </div>
-
-      {/* Letter format selector */}
-      {!isCompleted && (
-        <div className="no-print flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Letter format:</span>
-          <div className="flex items-center rounded-md border bg-background shadow-sm">
-            <Button
-              variant={letterFormat === "follow_up" ? "default" : "ghost"}
-              size="sm"
-              className="h-7 rounded-r-none gap-1.5 text-xs"
-              onClick={() => { setLetterFormat("follow_up"); setHasManualEdits(false); }}
-            >
-              Follow-up (7 sections)
-            </Button>
-            <Separator orientation="vertical" className="h-5" />
-            <Button
-              variant={letterFormat === "initial" ? "default" : "ghost"}
-              size="sm"
-              className="h-7 rounded-l-none gap-1.5 text-xs"
-              onClick={() => { setLetterFormat("initial"); setHasManualEdits(false); }}
-            >
-              Initial Clinic Letter (11 sections)
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Toolbar */}
       <div className="no-print flex items-center gap-2 rounded-lg border bg-muted/40 p-1.5">

@@ -21,18 +21,27 @@ export const medicationOveruse: RuleSet = {
         num(i.medications.triptan_days_per_month) >= 10 ||
         num(i.medications.opioid_days_per_month) >= 10 ||
         num(i.medications.combination_analgesic_days_per_month) >= 10 ||
-        num(i.medications.simple_analgesic_days_per_month) >= 15,
+        num(i.medications.simple_analgesic_days_per_month) >= 15 ||
+        num(i.medications.paracetamol_days_per_month) >= 15 ||
+        num(i.medications.nsaid_days_per_month) >= 15,
       detail:
-        "Regular overuse of acute medication (>=10 days/month triptans/opioids/combination, or >=15 days/month simple analgesics)",
+        "Regular overuse of acute medication (>=10 days/month triptans/opioids/combination, or >=15 days/month simple analgesics/paracetamol/NSAIDs)",
       missing:
         i.medications.triptan_days_per_month == null &&
         i.medications.opioid_days_per_month == null &&
         i.medications.combination_analgesic_days_per_month == null &&
-        i.medications.simple_analgesic_days_per_month == null,
+        i.medications.simple_analgesic_days_per_month == null &&
+        i.medications.paracetamol_days_per_month == null &&
+        i.medications.nsaid_days_per_month == null,
     },
   ],
 
   supportingAny: (i: DiagnosticInput) => [
+    {
+      met: num(i.pattern.headache_days_per_month) >= 10,
+      detail: "Elevated headache frequency (>=10 days/month)",
+      weight: 15,
+    },
     {
       met: bool(i.pattern.daily_or_near_daily),
       detail: "Daily or near-daily headache pattern",
@@ -42,6 +51,11 @@ export const medicationOveruse: RuleSet = {
       met: bool(i.pattern.worsening_with_increased_meds),
       detail: "Worsening after escalating medication use",
       weight: 10,
+    },
+    {
+      met: bool(i.pattern.change_from_baseline),
+      detail: "Change from previous headache baseline",
+      weight: 5,
     },
   ],
 

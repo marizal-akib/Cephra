@@ -23,17 +23,45 @@ export interface Patient {
   updated_at: string;
 }
 
+export type EncounterType = "initial" | "follow_up";
+
+export type DiagnosisTemplate =
+  | "migraine"
+  | "tension_type"
+  | "cluster"
+  | "tac"
+  | "medication_overuse"
+  | "cervicogenic"
+  | "occipital_neuralgia";
+
 export interface Encounter {
   id: string;
   clinician_id: string;
   referred_by_clinician_id: string | null;
   patient_id: string;
+  encounter_type: EncounterType;
+  parent_encounter_id: string | null;
+  diagnosis_template: DiagnosisTemplate | null;
   status: "intake" | "in_progress" | "red_flagged" | "completed";
   current_step: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
   patient?: Patient;
+}
+
+export interface FollowUpAssessment {
+  id: string;
+  encounter_id: string;
+  review: Record<string, unknown>;
+  burden: Record<string, unknown>;
+  medication_review: Record<string, unknown>;
+  investigations: Record<string, unknown>;
+  examination: Record<string, unknown>;
+  red_flags: Record<string, unknown>;
+  assessment_plan: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface QuestionnaireToken {
@@ -126,6 +154,20 @@ export const ENCOUNTER_STEPS = [
 
 export type EncounterStepKey = (typeof ENCOUNTER_STEPS)[number]["key"];
 
+// Follow-up encounter steps (7 clinical sections + letter)
+export const FOLLOWUP_STEPS = [
+  { key: "review", label: "Review Details", path: "review" },
+  { key: "burden", label: "Headache Burden", path: "burden" },
+  { key: "fu-medications", label: "Medication Review", path: "fu-medications" },
+  { key: "fu-investigations", label: "Investigations", path: "fu-investigations" },
+  { key: "fu-examination", label: "Examination", path: "fu-examination" },
+  { key: "red-flag-review", label: "Red Flag Review", path: "red-flag-review" },
+  { key: "fu-plan", label: "Assessment & Plan", path: "fu-plan" },
+  { key: "fu-letter", label: "Follow-up Letter", path: "fu-letter" },
+] as const;
+
+export type FollowUpStepKey = (typeof FOLLOWUP_STEPS)[number]["key"];
+
 // Assessment section keys (the form sections in clinician_assessments)
 export type AssessmentSection =
   | "past_medical_history"
@@ -153,4 +195,24 @@ export const SECTION_TO_STEP: Record<AssessmentSection, string> = {
   medications: "meds",
   clinical_examination: "clinical-examination",
   follow_up: "workup",
+};
+
+// Follow-up assessment section keys
+export type FollowUpSection =
+  | "review"
+  | "burden"
+  | "medication_review"
+  | "investigations"
+  | "examination"
+  | "red_flags"
+  | "assessment_plan";
+
+export const FOLLOWUP_SECTION_TO_STEP: Record<FollowUpSection, string> = {
+  review: "review",
+  burden: "burden",
+  medication_review: "fu-medications",
+  investigations: "fu-investigations",
+  examination: "fu-examination",
+  red_flags: "red-flag-review",
+  assessment_plan: "fu-plan",
 };

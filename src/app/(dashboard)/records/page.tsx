@@ -13,6 +13,7 @@ export type RecordPatient = {
   encounters: {
     id: string;
     status: EncounterStatus;
+    encounter_type: "initial" | "follow_up";
     current_step: string | null;
     created_at: string;
     updated_at: string;
@@ -64,6 +65,7 @@ export default async function PatientRecordsPage() {
         encounters(
           id,
           status,
+          encounter_type,
           current_step,
           created_at,
           updated_at,

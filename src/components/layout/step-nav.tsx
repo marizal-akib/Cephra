@@ -6,11 +6,18 @@ import { ENCOUNTER_STEPS } from "@/types";
 import { cn } from "@/lib/utils";
 import { Check, AlertTriangle } from "lucide-react";
 
+interface StepDef {
+  key: string;
+  label: string;
+  path: string;
+}
+
 interface StepNavProps {
   encounterId: string;
   completedSteps?: string[];
   redFlagged?: boolean;
   className?: string;
+  steps?: StepDef[];
 }
 
 interface StepNavLinksProps {
@@ -18,6 +25,7 @@ interface StepNavLinksProps {
   completedSteps?: string[];
   redFlagged?: boolean;
   className?: string;
+  steps?: StepDef[];
 }
 
 export function StepNavLinks({
@@ -25,12 +33,14 @@ export function StepNavLinks({
   completedSteps = [],
   redFlagged = false,
   className,
+  steps,
 }: StepNavLinksProps) {
   const pathname = usePathname();
+  const stepList = steps ?? [...ENCOUNTER_STEPS];
 
   return (
     <nav className={cn("space-y-0.5 overflow-y-auto p-3", className)}>
-      {ENCOUNTER_STEPS.map((step) => {
+      {stepList.map((step) => {
         const href = `/encounters/${encounterId}/${step.path}`;
         const isActive = pathname.endsWith(`/${step.path}`);
         const isCompleted = completedSteps.includes(step.key);
@@ -70,12 +80,14 @@ export function StepNav({
   completedSteps = [],
   redFlagged = false,
   className,
+  steps,
 }: StepNavProps) {
   return (
     <StepNavLinks
       encounterId={encounterId}
       completedSteps={completedSteps}
       redFlagged={redFlagged}
+      steps={steps}
       className={cn(
         "hidden w-48 shrink-0 border-r border-border bg-sidebar-background lg:block",
         className

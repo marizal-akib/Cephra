@@ -17,6 +17,7 @@ import {
   Loader2,
   Minus,
   Plus,
+  RefreshCw,
   Search,
   SearchX,
   Trash2,
@@ -402,8 +403,16 @@ function PatientFile({
             New Assessment
           </Button>
         </Link>
+        {patient.encounters.length > 0 && (
+          <Link href={`/encounters/new?patient_id=${patient.id}&type=follow_up`}>
+            <Button size="sm" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50">
+              <RefreshCw className="h-4 w-4" />
+              New Follow-up
+            </Button>
+          </Link>
+        )}
         {latestEncounter && (
-          <Link href={`/encounters/${latestEncounter.id}/intake`}>
+          <Link href={`/encounters/${latestEncounter.id}/${(latestEncounter as PatientEncounter & { encounter_type?: string }).encounter_type === "follow_up" ? "review" : "intake"}`}>
             <Button size="sm" variant="outline">
               <ExternalLink className="h-4 w-4" />
               Open Latest Assessment
@@ -530,6 +539,7 @@ function PatientFile({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Reference</TableHead>
+                        <TableHead>Type</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Clinician</TableHead>
                         <TableHead>Status</TableHead>
@@ -538,64 +548,78 @@ function PatientFile({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedEncounters.map((enc) => (
-                        <TableRow key={enc.id}>
-                          <TableCell className="font-mono text-xs">
-                            {assessmentRef(enc.id)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatDate(enc.created_at)}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {clinicianName}
-                          </TableCell>
-                          <TableCell>
-                            {(() => {
-                              const status = deriveAssessmentStatus({
-                                id: enc.id,
-                                status: enc.status,
-                                current_step: enc.current_step,
-                                questionnaire_tokens: enc.questionnaire_tokens,
-                              });
+                      {sortedEncounters.map((enc) => {
+                        const isFollowUp = enc.encounter_type === "follow_up";
+                        const openPath = isFollowUp ? "review" : "intake";
+                        const notePath = isFollowUp ? "fu-letter" : "note";
 
-                              return (
-                                <Badge
-                                  variant="secondary"
-                                  className={cn(ASSESSMENT_STATUS_BADGE_STYLES[status])}
-                                >
-                                  {assessmentStatusLabel(status)}
-                                </Badge>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {questionnaireStatus(enc)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Link href={`/encounters/${enc.id}/intake`}>
-                                <Button size="xs" variant="outline">
-                                  Open
-                                </Button>
-                              </Link>
-                              {enc.status === "completed" && (
-                                <Link href={`/encounters/${enc.id}/output`}>
-                                  <Button size="xs" variant="ghost">
-                                    Output
+                        return (
+                          <TableRow key={enc.id}>
+                            <TableCell className="font-mono text-xs">
+                              {assessmentRef(enc.id)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={isFollowUp ? "bg-purple-100 text-purple-800 text-xs" : "bg-blue-100 text-blue-800 text-xs"}
+                              >
+                                {isFollowUp ? "Follow-up" : "Initial"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {formatDate(enc.created_at)}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {clinicianName}
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const status = deriveAssessmentStatus({
+                                  id: enc.id,
+                                  status: enc.status,
+                                  current_step: enc.current_step,
+                                  questionnaire_tokens: enc.questionnaire_tokens,
+                                });
+
+                                return (
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(ASSESSMENT_STATUS_BADGE_STYLES[status])}
+                                  >
+                                    {assessmentStatusLabel(status)}
+                                  </Badge>
+                                );
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {isFollowUp ? "—" : questionnaireStatus(enc)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Link href={`/encounters/${enc.id}/${openPath}`}>
+                                  <Button size="xs" variant="outline">
+                                    Open
                                   </Button>
                                 </Link>
-                              )}
-                              {enc.generated_notes.length > 0 && (
-                                <Link href={`/encounters/${enc.id}/note`}>
-                                  <Button size="xs" variant="ghost">
-                                    Note
-                                  </Button>
-                                </Link>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                {enc.status === "completed" && (
+                                  <Link href={`/encounters/${enc.id}/output`}>
+                                    <Button size="xs" variant="ghost">
+                                      Output
+                                    </Button>
+                                  </Link>
+                                )}
+                                {enc.generated_notes.length > 0 && (
+                                  <Link href={`/encounters/${enc.id}/${notePath}`}>
+                                    <Button size="xs" variant="ghost">
+                                      Note
+                                    </Button>
+                                  </Link>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

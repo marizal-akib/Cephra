@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 type DashboardEncounter = {
   id: string;
   status: EncounterStatus;
+  encounter_type: "initial" | "follow_up";
   current_step: string | null;
   updated_at: string;
   created_at: string;
@@ -46,6 +47,7 @@ export default async function DashboardPage() {
       `
         id,
         status,
+        encounter_type,
         current_step,
         updated_at,
         created_at,

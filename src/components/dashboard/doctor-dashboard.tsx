@@ -25,6 +25,7 @@ import {
 type DashboardEncounter = {
   id: string;
   status: EncounterStatus;
+  encounter_type: "initial" | "follow_up";
   current_step: string | null;
   updated_at: string;
   created_at: string;
@@ -48,22 +49,22 @@ const PRIORITY_ORDER: PriorityStatus[] = [
   "note_drafted",
 ];
 
-const STATUS_ACTIONS: Record<PriorityStatus, { label: string; href: (id: string, step: string) => string }> = {
+const STATUS_ACTIONS: Record<PriorityStatus, { label: string; href: (id: string, step: string, isFollowUp: boolean) => string }> = {
   red_flagged: {
     label: "Review Now",
-    href: (id) => `/encounters/${id}/red-flags`,
+    href: (id, _step, isFollowUp) => `/encounters/${id}/${isFollowUp ? "red-flag-review" : "red-flags"}`,
   },
   response_received: {
     label: "Review Intake",
-    href: (id) => `/encounters/${id}/intake`,
+    href: (id, _step, isFollowUp) => `/encounters/${id}/${isFollowUp ? "review" : "intake"}`,
   },
   in_assessment: {
     label: "Continue",
-    href: (id, step) => `/encounters/${id}/${step}`,
+    href: (id, step, isFollowUp) => `/encounters/${id}/${step || (isFollowUp ? "review" : "intake")}`,
   },
   note_drafted: {
     label: "Open Note",
-    href: (id) => `/encounters/${id}/note`,
+    href: (id, _step, isFollowUp) => `/encounters/${id}/${isFollowUp ? "fu-letter" : "note"}`,
   },
 };
 
@@ -226,8 +227,9 @@ export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">
                 {searchFilteredEncounters.map((encounter) => {
                   const status = deriveAssessmentStatus(encounter) as PriorityStatus;
+                  const isFollowUp = encounter.encounter_type === "follow_up";
                   const action = STATUS_ACTIONS[status];
-                  const actionHref = action.href(encounter.id, encounter.current_step || "intake");
+                  const actionHref = action.href(encounter.id, encounter.current_step || "intake", isFollowUp);
 
                   return (
                     <div
@@ -237,7 +239,14 @@ export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{patientDisplayName(encounter)}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="truncate text-sm font-semibold">{patientDisplayName(encounter)}</p>
+                              {isFollowUp && (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs shrink-0">
+                                  Follow-up
+                                </Badge>
+                              )}
+                            </div>
                             <p className="mt-1 text-xs text-muted-foreground">
                               Patient ID: {patientDisplayId(encounter)}
                             </p>

@@ -14,6 +14,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import {
+  BookOpen,
   ClipboardList,
   FolderOpen,
   LayoutDashboard,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/workflow", label: "Assessment Workflow", icon: ClipboardList },
   { href: "/records", label: "Patient Records", icon: FolderOpen },
+  { href: "/guidelines", label: "Guideline Library", icon: BookOpen },
   { href: "/questionnaire", label: "Patient Questionnaire", icon: Smartphone },
 ];
 const ADMIN_NAV_ITEMS = [
