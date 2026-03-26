@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/workflow", label: "Assessment Workflow", icon: ClipboardList },
   { href: "/records", label: "Patient Records", icon: FolderOpen },
-  { href: "/guidelines", label: "Guideline Library", icon: BookOpen },
+  { href: "/guidelines", label: "Guideline & Evidence Library", icon: BookOpen },
   { href: "/questionnaire", label: "Patient Questionnaire", icon: Smartphone },
 ];
 const ADMIN_NAV_ITEMS = [

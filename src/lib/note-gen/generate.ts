@@ -358,7 +358,10 @@ function generateMedicationReview(ctx: NoteContext): string {
     parts.push("Medication review:");
     for (const m of medActions) {
       const actionLabel = m.action.charAt(0).toUpperCase() + m.action.slice(1);
-      parts.push(`- ${m.drug} (${m.type}): ${m.dose}. Benefit: ${m.benefit || "not stated"}. Tolerability: ${m.tolerability || "not stated"}. Action: ${actionLabel}.`);
+      const mx = m as unknown as Record<string, unknown>;
+      const benefitText = (m.benefit || "not stated") + (mx.benefit_detail ? ` (${mx.benefit_detail})` : "");
+      const tolerabilityText = (m.tolerability || "not stated") + (mx.tolerability_detail ? ` (${mx.tolerability_detail})` : "");
+      parts.push(`- ${m.drug} (${m.type}): ${m.dose}. Benefit: ${benefitText}. Tolerability: ${tolerabilityText}. Action: ${actionLabel}.`);
     }
   }
 

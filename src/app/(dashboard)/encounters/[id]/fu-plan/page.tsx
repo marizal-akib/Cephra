@@ -10,7 +10,7 @@ import { DictationTextarea as Textarea } from "@/components/ui/dictation-textare
 import { ToggleField } from "@/components/encounter/toggle-field";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/ui/info-tip";
-import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
+import { getTooltip } from "@/lib/follow-up/tooltip-content";
 import { useRouter } from "next/navigation";
 import {
   Select,
@@ -21,8 +21,10 @@ import {
 } from "@/components/ui/select";
 
 export default function FuPlanPage() {
-  const { encounterId, followUpAssessment, diagnosticOutput, updateFollowUpLocal, updateEncounterLocal } =
+  const { encounterId, encounter, followUpAssessment, diagnosticOutput, updateFollowUpLocal, updateEncounterLocal } =
     useEncounterContext();
+  const tip = (f: Parameters<typeof getTooltip>[1]) =>
+    getTooltip(encounter?.diagnosis_template, f);
   const router = useRouter();
 
   const defaultValues = (followUpAssessment?.assessment_plan || {}) as Record<string, unknown>;
@@ -61,7 +63,7 @@ export default function FuPlanPage() {
           return (
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold mb-3">Assessment <InfoTip content={TOOLTIP.plan.assessment} /></h3>
+                <h3 className="text-sm font-semibold mb-3">Assessment <InfoTip content={tip("plan.assessment")} /></h3>
                 <div className="space-y-4">
                   {topDiagnosis && (
                     <p className="text-sm text-muted-foreground">
@@ -106,7 +108,7 @@ export default function FuPlanPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Treatment Changes <InfoTip content={TOOLTIP.plan.treatmentChanges} /></h3>
+                <h3 className="text-sm font-semibold mb-3">Treatment Changes <InfoTip content={tip("plan.treatmentChanges")} /></h3>
                 <Textarea
                   value={(v.treatment_changes as string) || ""}
                   onChange={(e) => set("treatment_changes", e.target.value)}
@@ -116,7 +118,7 @@ export default function FuPlanPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Safety Counselling <InfoTip content={TOOLTIP.plan.safetyCounselling} /></h3>
+                <h3 className="text-sm font-semibold mb-3">Safety Counselling <InfoTip content={tip("plan.safetyCounselling")} /></h3>
                 <Textarea
                   value={(v.safety_counselling as string) || ""}
                   onChange={(e) => set("safety_counselling", e.target.value)}
@@ -126,7 +128,7 @@ export default function FuPlanPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Follow-up Plan <InfoTip content={TOOLTIP.plan.followUpPlan} /></h3>
+                <h3 className="text-sm font-semibold mb-3">Follow-up Plan <InfoTip content={tip("plan.followUpPlan")} /></h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">

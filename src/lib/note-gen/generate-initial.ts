@@ -192,7 +192,10 @@ function generateMedicationAndAllergy(ctx: NoteContext): string {
   if (medActions.length > 0) {
     for (const m of medActions) {
       const overuseRisk = m.type === "acute" ? "Monitor" : "N/A";
-      parts.push(`- ${m.drug} (${m.type}): ${m.dose || "dose not specified"}. Benefit/tolerance: ${m.benefit || "not stated"} / ${m.tolerability || "not stated"}. Overuse risk: ${overuseRisk}.`);
+      const mx = m as unknown as Record<string, unknown>;
+      const benefitText = (m.benefit || "not stated") + (mx.benefit_detail ? ` (${mx.benefit_detail})` : "");
+      const tolerabilityText = (m.tolerability || "not stated") + (mx.tolerability_detail ? ` (${mx.tolerability_detail})` : "");
+      parts.push(`- ${m.drug} (${m.type}): ${m.dose || "dose not specified"}. Benefit/tolerance: ${benefitText} / ${tolerabilityText}. Overuse risk: ${overuseRisk}.`);
     }
   }
 

@@ -225,7 +225,9 @@ function generateMedReview(ctx: FollowUpNoteContext): string {
     parts.push("Medication review:");
     for (const m of medications) {
       const actionLabel = m.action.charAt(0).toUpperCase() + m.action.slice(1);
-      parts.push(`- ${m.drug} (${m.type}): ${m.dose}. Benefit: ${m.benefit || "not stated"}. Tolerability: ${m.tolerability || "not stated"}. Action: ${actionLabel}.`);
+      const benefitText = (m.benefit || "not stated") + (m.benefit_detail ? ` (${m.benefit_detail})` : "");
+      const tolerabilityText = (m.tolerability || "not stated") + (m.tolerability_detail ? ` (${m.tolerability_detail})` : "");
+      parts.push(`- ${m.drug} (${m.type}): ${m.dose}. Benefit: ${benefitText}. Tolerability: ${tolerabilityText}. Action: ${actionLabel}.`);
     }
   }
 
@@ -251,7 +253,12 @@ function generateInvestigations(ctx: FollowUpNoteContext): string {
   if (results.length > 0) {
     lines.push("Results reviewed:");
     for (const r of results) {
-      lines.push(`- ${r.name}: ${r.result || "result pending"}. Interpretation: ${r.interpretation || "not stated"}.`);
+      const displayName = r.name === "Others" && r.nameSpecify ? `Others (${r.nameSpecify})` : r.name;
+      let resultText = r.result || "result pending";
+      if (r.result === "Abnormal" && r.abnormalDetails) {
+        resultText = `Abnormal — ${r.abnormalDetails}`;
+      }
+      lines.push(`- ${displayName}: ${resultText}. Interpretation: ${r.interpretation || "not stated"}.`);
     }
   }
 

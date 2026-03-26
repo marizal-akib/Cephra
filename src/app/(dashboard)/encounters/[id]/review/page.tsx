@@ -13,7 +13,7 @@ import { DictationTextarea as Textarea } from "@/components/ui/dictation-textare
 import { Badge } from "@/components/ui/badge";
 import { InfoTip } from "@/components/ui/info-tip";
 import { Button } from "@/components/ui/button";
-import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
+import { getTooltip } from "@/lib/follow-up/tooltip-content";
 import {
   Select,
   SelectContent,
@@ -35,6 +35,8 @@ export default function ReviewPage() {
 
   const patient = encounter?.patient;
   const topDiagnosis = diagnosticOutput?.phenotypes[0];
+  const tip = (f: Parameters<typeof getTooltip>[1]) =>
+    getTooltip(encounter?.diagnosis_template, f);
 
   const defaultValues = (followUpAssessment?.review || {}) as Record<string, unknown>;
 
@@ -63,7 +65,7 @@ export default function ReviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Patient Details <InfoTip content={TOOLTIP.review.patientDetails} /></CardTitle>
+          <CardTitle className="text-base">Patient Details <InfoTip content={tip("review.patientDetails")} /></CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -111,7 +113,7 @@ export default function ReviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Current Working Diagnosis <InfoTip content={TOOLTIP.review.workingDiagnosis} /></CardTitle>
+          <CardTitle className="text-base">Current Working Diagnosis <InfoTip content={tip("review.workingDiagnosis")} /></CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {topDiagnosis ? (
@@ -214,7 +216,7 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Key Diagnostic Question <InfoTip content={TOOLTIP.review.keyQuestion} /></Label>
+                  <Label>Key Diagnostic Question <InfoTip content={tip("review.keyQuestion")} /></Label>
                   <Input
                     value={(v.key_question as string) || ""}
                     onChange={(e) => set("key_question", e.target.value)}
@@ -226,7 +228,7 @@ export default function ReviewPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Diagnosis Notes <InfoTip content={TOOLTIP.review.diagnosisNotes} /></Label>
+                  <Label>Diagnosis Notes <InfoTip content={tip("review.relevantBackground")} /></Label>
                   <Textarea
                     value={(v.diagnosis_notes as string) || ""}
                     onChange={(e) => set("diagnosis_notes", e.target.value)}

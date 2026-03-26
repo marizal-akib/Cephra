@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ScanLine,
   Stethoscope,
+  FlaskConical,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { GuidelineCategory, CategoryDefinition } from "@/lib/guidelines/types";
@@ -15,6 +16,7 @@ const CATEGORY_ICONS: Record<GuidelineCategory, React.ElementType> = {
   "secondary-headaches-red-flags": AlertTriangle,
   "imaging-investigations": ScanLine,
   "treatment-follow-up": Stethoscope,
+  "evidence-summaries": FlaskConical,
 };
 
 export function CategoryCard({
@@ -29,17 +31,14 @@ export function CategoryCard({
   onClick: () => void;
 }) {
   const Icon = CATEGORY_ICONS[category.id];
-  const isComingSoon = count === 0;
 
   return (
-    <button onClick={onClick} disabled={isComingSoon} className="w-full text-left">
+    <button onClick={onClick} className="w-full text-left">
       <Card
         className={cn(
           "h-full transition-colors",
           isActive && "ring-2 ring-primary",
-          isComingSoon
-            ? "opacity-60"
-            : "cursor-pointer hover:bg-accent/40",
+          "cursor-pointer hover:bg-accent/40",
         )}
       >
         <CardContent className="flex items-start gap-3">
@@ -61,7 +60,7 @@ export function CategoryCard({
               {category.description}
             </p>
             <p className="mt-1 text-xs font-medium text-muted-foreground">
-              {isComingSoon ? "Coming soon" : `${count} ${count === 1 ? "guide" : "guides"}`}
+              {`${count} ${count === 1 ? "guide" : "guides"}`}
             </p>
           </div>
         </CardContent>

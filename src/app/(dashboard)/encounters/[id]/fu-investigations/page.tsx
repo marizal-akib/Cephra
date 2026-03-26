@@ -11,11 +11,24 @@ import { DictationTextarea as Textarea } from "@/components/ui/dictation-textare
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
-import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
+import { getTooltip } from "@/lib/follow-up/tooltip-content";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  INVESTIGATION_NAME_OPTIONS,
+  INVESTIGATION_RESULT_OPTIONS,
+} from "@/lib/schemas/followup/investigations";
 
 export default function FuInvestigationsPage() {
-  const { encounterId, followUpAssessment, updateFollowUpLocal, updateEncounterLocal } =
+  const { encounterId, encounter, followUpAssessment, updateFollowUpLocal, updateEncounterLocal } =
     useEncounterContext();
+  const tip = (f: Parameters<typeof getTooltip>[1]) =>
+    getTooltip(encounter?.diagnosis_template, f);
 
   const defaultValues = (followUpAssessment?.investigations || {}) as Record<string, unknown>;
 
@@ -29,7 +42,7 @@ export default function FuInvestigationsPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h2 className="text-xl font-bold">Investigation & Results Review <InfoTip content={TOOLTIP.investigations.section} /></h2>
+        <h2 className="text-xl font-bold">Investigation & Results Review <InfoTip content={tip("investigations.section")} /></h2>
         <p className="text-sm text-muted-foreground">
           Review results since last consultation. Never list a result without an interpretation.
         </p>
@@ -54,10 +67,10 @@ export default function FuInvestigationsPage() {
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Results Reviewed <InfoTip content={TOOLTIP.investigations.resultsReviewed} /></h3>
+                  <h3 className="text-sm font-semibold">Results Reviewed <InfoTip content={tip("investigations.resultsReviewed")} /></h3>
                   <Button
                     type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs"
-                    onClick={() => set("results", [...results, { name: "", result: "", interpretation: "" }])}
+                    onClick={() => set("results", [...results, { name: "", result: "", interpretation: "", nameSpecify: "", abnormalDetails: "" }])}
                   >
                     <Plus className="h-3 w-3" />Add Result
                   </Button>
@@ -75,11 +88,69 @@ export default function FuInvestigationsPage() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Investigation Name</Label>
-                      <Input value={inv.name} onChange={(e) => { const next = [...results]; next[idx] = { ...next[idx], name: e.target.value }; set("results", next); }} placeholder="e.g. MRI brain with contrast" />
+                      <Select
+                        value={inv.name || ""}
+                        onValueChange={(val) => {
+                          const next = [...results];
+                          next[idx] = { ...next[idx], name: val, nameSpecify: val === "Others" ? next[idx].nameSpecify : "" };
+                          set("results", next);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select investigation..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INVESTIGATION_NAME_OPTIONS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {inv.name && !INVESTIGATION_NAME_OPTIONS.includes(inv.name as typeof INVESTIGATION_NAME_OPTIONS[number]) && (
+                        <p className="text-xs text-muted-foreground mt-1">Previous value: {inv.name}</p>
+                      )}
+                      {inv.name === "Others" && (
+                        <div className="space-y-1 mt-1.5">
+                          <Label className="text-xs">Specify Investigation</Label>
+                          <Input
+                            value={inv.nameSpecify || ""}
+                            onChange={(e) => { const next = [...results]; next[idx] = { ...next[idx], nameSpecify: e.target.value }; set("results", next); }}
+                            placeholder="Specify investigation name..."
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Result</Label>
-                      <Input value={inv.result} onChange={(e) => { const next = [...results]; next[idx] = { ...next[idx], result: e.target.value }; set("results", next); }} placeholder="e.g. Normal, no structural lesion" />
+                      <Select
+                        value={inv.result || ""}
+                        onValueChange={(val) => {
+                          const next = [...results];
+                          next[idx] = { ...next[idx], result: val, abnormalDetails: val === "Abnormal" ? next[idx].abnormalDetails : "" };
+                          set("results", next);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select result..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INVESTIGATION_RESULT_OPTIONS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {inv.result && !INVESTIGATION_RESULT_OPTIONS.includes(inv.result as typeof INVESTIGATION_RESULT_OPTIONS[number]) && (
+                        <p className="text-xs text-muted-foreground mt-1">Previous value: {inv.result}</p>
+                      )}
+                      {inv.result === "Abnormal" && (
+                        <div className="space-y-1 mt-1.5">
+                          <Label className="text-xs">Abnormal Result Details</Label>
+                          <Input
+                            value={inv.abnormalDetails || ""}
+                            onChange={(e) => { const next = [...results]; next[idx] = { ...next[idx], abnormalDetails: e.target.value }; set("results", next); }}
+                            placeholder="Describe the abnormality..."
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Clinical Interpretation</Label>
@@ -90,7 +161,7 @@ export default function FuInvestigationsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Pending Investigations <InfoTip content={TOOLTIP.investigations.pending} /></Label>
+                <Label>Pending Investigations <InfoTip content={tip("investigations.pending")} /></Label>
                 <Textarea
                   value={(v.pending as string) || ""}
                   onChange={(e) => set("pending", e.target.value)}

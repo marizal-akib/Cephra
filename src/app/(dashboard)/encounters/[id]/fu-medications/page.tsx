@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { InfoTip } from "@/components/ui/info-tip";
-import { TOOLTIP } from "@/lib/follow-up/tooltip-content";
+import { getTooltip } from "@/lib/follow-up/tooltip-content";
 import {
   Select,
   SelectContent,
@@ -24,8 +24,10 @@ import {
 } from "@/components/ui/select";
 
 export default function FuMedicationsPage() {
-  const { encounterId, followUpAssessment, baseline, updateFollowUpLocal, updateEncounterLocal } =
+  const { encounterId, encounter, followUpAssessment, baseline, updateFollowUpLocal, updateEncounterLocal } =
     useEncounterContext();
+  const tip = (f: Parameters<typeof getTooltip>[1]) =>
+    getTooltip(encounter?.diagnosis_template, f);
 
   const defaultValues = (followUpAssessment?.medication_review || {}) as Record<string, unknown>;
 
@@ -39,7 +41,7 @@ export default function FuMedicationsPage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6">
-        <h2 className="text-xl font-bold">Medication Review <InfoTip content={TOOLTIP.medications.section} /></h2>
+        <h2 className="text-xl font-bold">Medication Review <InfoTip content={tip("medications.section")} /></h2>
         <p className="text-sm text-muted-foreground">
           Document every current medication with response, tolerability, and planned action.
         </p>
@@ -83,7 +85,7 @@ export default function FuMedicationsPage() {
               )}
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Acute Medication (days/month) <InfoTip content={TOOLTIP.medications.acuteMedication} /></h3>
+                <h3 className="text-sm font-semibold mb-3">Acute Medication (days/month)</h3>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <NumberField label="Triptan" value={v.triptan_days_per_month as number | undefined} onChange={(val) => set("triptan_days_per_month", val)} min={0} max={31} unit="days/mo" />
@@ -105,7 +107,7 @@ export default function FuMedicationsPage() {
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-3">Treatment Response <InfoTip content={TOOLTIP.medications.treatmentResponse} /></h3>
+                <h3 className="text-sm font-semibold mb-3">Treatment Response</h3>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <ToggleField label="Response to triptan" checked={!!v.response_to_triptan} onCheckedChange={(c) => set("response_to_triptan", c)} />
                   <ToggleField label="Response to oxygen" description="High-flow O₂ (cluster)" checked={!!v.response_to_oxygen} onCheckedChange={(c) => set("response_to_oxygen", c)} />
@@ -115,10 +117,10 @@ export default function FuMedicationsPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Per-Drug Review <InfoTip content={TOOLTIP.medications.perDrugReview} /></h3>
+                  <h3 className="text-sm font-semibold">Per-Drug Review</h3>
                   <Button
                     type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs"
-                    onClick={() => set("medications", [...medications, { drug: "", type: "acute", dose: "", benefit: "", tolerability: "", action: "continue", notes: "" }])}
+                    onClick={() => set("medications", [...medications, { drug: "", type: "acute", dose: "", benefit: "", benefit_detail: "", tolerability: "", tolerability_detail: "", action: "continue", notes: "" }])}
                   >
                     <Plus className="h-3 w-3" />Add Medication
                   </Button>
@@ -177,11 +179,34 @@ export default function FuMedicationsPage() {
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div className="space-y-1">
                             <Label className="text-xs">Benefit</Label>
-                            <Input value={med.benefit} onChange={(e) => { const next = [...medications]; next[idx] = { ...next[idx], benefit: e.target.value }; set("medications", next); }} placeholder="e.g. 50% reduction in headache days" />
+                            <Select value={med.benefit} onValueChange={(val) => { const next = [...medications]; next[idx] = { ...next[idx], benefit: val, benefit_detail: val === "No effect" ? next[idx].benefit_detail : "" }; set("medications", next); }}>
+                              <SelectTrigger className="w-full"><SelectValue placeholder="Select benefit" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Aborts headache in 100% episodes">Aborts headache in 100% episodes</SelectItem>
+                                <SelectItem value="Aborts headache more than 50% episodes">Aborts headache &gt;50% episodes</SelectItem>
+                                <SelectItem value="Aborts headache less than 50% episodes">Aborts headache &lt;50% episodes</SelectItem>
+                                <SelectItem value="Reduced frequency and severity more than 50%">Reduced frequency &amp; severity &gt;50%</SelectItem>
+                                <SelectItem value="Reduced frequency and severity less than 50%">Reduced frequency &amp; severity &lt;50%</SelectItem>
+                                <SelectItem value="No effect">No effect</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {med.benefit === "No effect" && (
+                              <Input value={med.benefit_detail || ""} onChange={(e) => { const next = [...medications]; next[idx] = { ...next[idx], benefit_detail: e.target.value }; set("medications", next); }} placeholder="Optional comment..." className="mt-1.5" />
+                            )}
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Tolerability</Label>
-                            <Input value={med.tolerability} onChange={(e) => { const next = [...medications]; next[idx] = { ...next[idx], tolerability: e.target.value }; set("medications", next); }} placeholder="e.g. Mild paraesthesia" />
+                            <Select value={med.tolerability} onValueChange={(val) => { const next = [...medications]; next[idx] = { ...next[idx], tolerability: val, tolerability_detail: (val === "Minor side effects" || val === "Severe side effects") ? next[idx].tolerability_detail : "" }; set("medications", next); }}>
+                              <SelectTrigger className="w-full"><SelectValue placeholder="Select tolerability" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Well tolerated">Well tolerated</SelectItem>
+                                <SelectItem value="Minor side effects">Minor side effects</SelectItem>
+                                <SelectItem value="Severe side effects">Severe side effects</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {(med.tolerability === "Minor side effects" || med.tolerability === "Severe side effects") && (
+                              <Input value={med.tolerability_detail || ""} onChange={(e) => { const next = [...medications]; next[idx] = { ...next[idx], tolerability_detail: e.target.value }; set("medications", next); }} placeholder="e.g. Paraesthesia, fatigue..." className="mt-1.5" />
+                            )}
                           </div>
                         </div>
                       </div>
