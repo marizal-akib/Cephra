@@ -18,7 +18,6 @@ import {
   Minus,
   Plus,
   RefreshCw,
-  Search,
   SearchX,
   Trash2,
   TrendingDown,
@@ -28,7 +27,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -156,6 +155,18 @@ export function PatientRecords({
     });
   }, [patients, normalizedQuery]);
 
+  const searchSuggestions = useMemo(() => {
+    const pool = new Set<string>();
+    for (const patient of patients) {
+      pool.add(patientName(patient));
+      pool.add(patientId(patient));
+      for (const encounter of patient.encounters) {
+        pool.add(assessmentRef(encounter.id));
+      }
+    }
+    return Array.from(pool);
+  }, [patients]);
+
   const selected = useMemo(
     () => patients.find((p) => p.id === selectedId) ?? null,
     [patients, selectedId]
@@ -192,16 +203,13 @@ export function PatientRecords({
         >
           {/* Search */}
           <div className="border-b border-border px-4 py-4">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9"
-                placeholder="Search by patient name, ID, or assessment ref"
-                aria-label="Search patients"
-              />
-            </div>
+            <SearchInput
+              value={query}
+              onValueChange={setQuery}
+              suggestions={searchSuggestions}
+              placeholder="Who do you want to open? Try name, patient ID, or assessment ref"
+              ariaLabel="Search patients by name, patient ID, or assessment reference"
+            />
           </div>
 
           {/* List */}
@@ -222,6 +230,9 @@ export function PatientRecords({
                     <p className="text-xs text-muted-foreground">
                       Try a different search term.
                     </p>
+                    <Button variant="outline" size="sm" onClick={() => setQuery("")}>
+                      Clear search
+                    </Button>
                   </>
                 )}
               </div>
@@ -266,6 +277,16 @@ export function PatientRecords({
                 })}
               </ul>
             )}
+          </div>
+
+          <div className="sticky bottom-0 border-t border-border bg-card/95 p-3 backdrop-blur lg:hidden">
+            <SearchInput
+              value={query}
+              onValueChange={setQuery}
+              suggestions={searchSuggestions}
+              placeholder="Search patients from here"
+              ariaLabel="Mobile patient search"
+            />
           </div>
         </div>
 

@@ -9,12 +9,11 @@ import {
   CheckCircle2,
   FileText,
   Inbox,
-  Search,
   ClipboardList,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   ASSESSMENT_STATUS_BADGE_STYLES,
   assessmentStatusLabel,
@@ -122,19 +121,29 @@ export function EncounterList({ encounters }: { encounters: DashboardEncounter[]
     return list;
   }, [encounters, filter, search]);
 
+  const searchSuggestions = useMemo(() => {
+    const pool = new Set<string>();
+    for (const encounter of encounters) {
+      pool.add(patientDisplayName(encounter));
+      if (encounter.patient?.mrn) pool.add(encounter.patient.mrn);
+      pool.add(encounter.id);
+    }
+    return Array.from(pool);
+  }, [encounters]);
+
   return (
     <div className="space-y-4">
       {/* Search + Filter bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
-            placeholder="Search patients..."
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          suggestions={searchSuggestions}
+          className="flex-1"
+          inputClassName="h-10"
+          placeholder="Who are you trying to find? Search patient name or ID"
+          ariaLabel="Search patients by name or patient ID"
+        />
       </div>
 
       {/* Status filter tabs */}
@@ -171,6 +180,11 @@ export function EncounterList({ encounters }: { encounters: DashboardEncounter[]
           <p className="text-sm text-muted-foreground">
             {search ? "No matching assessments found." : "No assessments yet."}
           </p>
+          {search ? (
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => setSearch("")}>
+              Clear search
+            </Button>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-2">

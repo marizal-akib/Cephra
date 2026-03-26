@@ -5,13 +5,12 @@ import Link from "next/link";
 import {
   FolderOpen,
   Plus,
-  Search,
   Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   ASSESSMENT_STATUS_BADGE_STYLES,
   assessmentReference,
@@ -132,6 +131,16 @@ export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter
     [searchFilteredEncounters]
   );
 
+  const searchSuggestions = useMemo(() => {
+    const pool = new Set<string>();
+    for (const encounter of priorityEncounters) {
+      pool.add(patientDisplayName(encounter));
+      pool.add(patientDisplayId(encounter));
+      pool.add(assessmentReference(encounter.id));
+    }
+    return Array.from(pool);
+  }, [priorityEncounters]);
+
   return (
     <div className="space-y-5 p-4 md:p-6 lg:space-y-6 lg:p-8">
       <section className="rounded-lg border border-border bg-card px-4 py-4 md:px-5">
@@ -157,16 +166,13 @@ export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter
       </section>
 
       <section className="rounded-lg border border-border bg-card px-4 py-3 md:px-5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            className="h-11 pl-9"
-            placeholder="Search patient, ID, or assessment ref"
-            aria-label="Search patient, ID, or assessment ref"
-          />
-        </div>
+        <SearchInput
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          suggestions={searchSuggestions}
+          placeholder="Who are you looking for today? Try patient name, ID, or assessment ref"
+          ariaLabel="Search patients by name, patient ID, or assessment reference"
+        />
       </section>
 
       <section className="-mx-1 overflow-x-auto px-1 md:mx-0 md:overflow-visible md:px-0">
@@ -222,6 +228,11 @@ export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter
             {searchFilteredEncounters.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
                 No active assessments match your search.
+                <div className="mt-3">
+                  <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>
+                    Clear search
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-1">

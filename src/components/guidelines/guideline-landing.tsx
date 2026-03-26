@@ -2,9 +2,9 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, ChevronRight, FileText } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ChevronRight, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
 import type { GuidelineCategory } from "@/lib/guidelines/types";
 import { CATEGORIES, GUIDELINE_METAS } from "@/lib/guidelines";
 import { searchGuidelines } from "@/lib/guidelines/search";
@@ -30,6 +30,16 @@ export function GuidelineLanding() {
     return counts;
   }, []);
 
+  const searchSuggestions = useMemo(() => {
+    const pool = new Set<string>();
+    for (const guideline of GUIDELINE_METAS) {
+      pool.add(guideline.title);
+      if (guideline.subtitle) pool.add(guideline.subtitle);
+      for (const tag of guideline.tags) pool.add(tag);
+    }
+    return Array.from(pool);
+  }, []);
+
   function handleCategoryClick(id: GuidelineCategory) {
     setActiveCategory((prev) => (prev === id ? null : id));
   }
@@ -48,15 +58,13 @@ export function GuidelineLanding() {
 
       {/* Search */}
       <section className="rounded-lg border border-border bg-card px-4 py-3 md:px-5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search guidelines..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onValueChange={setQuery}
+          suggestions={searchSuggestions}
+          placeholder="What guideline are you looking for today?"
+          ariaLabel="Search clinical guidelines by title, subtitle, or tags"
+        />
       </section>
 
       {/* Category cards */}

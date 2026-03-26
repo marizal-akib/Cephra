@@ -48,7 +48,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Sheet,
   SheetContent,
@@ -192,6 +192,16 @@ export function AssessmentWorkflowList({
       return orderA - orderB;
     });
   }, [activeFilter, encounters, ownershipFilter, search]);
+
+  const searchSuggestions = useMemo(() => {
+    const pool = new Set<string>();
+    for (const encounter of encounters) {
+      pool.add(patientDisplayName(encounter));
+      pool.add(patientDisplayId(encounter));
+      pool.add(assessmentReference(encounter.id));
+    }
+    return Array.from(pool);
+  }, [encounters]);
 
   function effectiveLatestToken(encounter: WorkflowEncounter) {
     const refreshed = refreshedTokens[encounter.id];
@@ -825,7 +835,7 @@ export function AssessmentWorkflowList({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 lg:pb-0">
       <header className="space-y-4">
         <div className="hidden items-end justify-between gap-4 lg:flex">
           <div className="space-y-1">
@@ -841,16 +851,14 @@ export function AssessmentWorkflowList({
                 New Assessment
               </Link>
             </Button>
-            <div className="relative sm:w-[420px]">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="pl-9"
-                placeholder="Search patient, ID, or assessment ref"
-                aria-label="Search patient, ID, or assessment ref"
-              />
-            </div>
+            <SearchInput
+              value={search}
+              onValueChange={setSearch}
+              suggestions={searchSuggestions}
+              className="sm:w-[420px]"
+              placeholder="Who are you looking for? Search patient, ID, or assessment ref"
+              ariaLabel="Search patient, ID, or assessment ref"
+            />
           </div>
         </div>
 
@@ -879,14 +887,13 @@ export function AssessmentWorkflowList({
             </div>
           </div>
 
-          <div className={cn("relative md:block", showMobileSearch ? "block" : "hidden")}>
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <div className={cn("md:block", showMobileSearch ? "block" : "hidden")}>
+            <SearchInput
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="h-11 pl-9"
-              placeholder="Search patient, ID, or assessment ref"
-              aria-label="Search patient, ID, or assessment ref"
+              onValueChange={setSearch}
+              suggestions={searchSuggestions}
+              placeholder="Find a case by patient name, ID, or assessment ref"
+              ariaLabel="Search patient, ID, or assessment ref"
             />
           </div>
 
@@ -966,6 +973,16 @@ export function AssessmentWorkflowList({
         </CardContent>
       </Card>
 
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 p-3 backdrop-blur lg:hidden">
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          suggestions={searchSuggestions}
+          placeholder="Quick search from bottom"
+          ariaLabel="Mobile quick search by patient name, ID, or assessment reference"
+        />
+      </div>
+
       <div className="space-y-3 lg:hidden">
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {[
@@ -1039,7 +1056,7 @@ export function AssessmentWorkflowList({
                       <TableHead>Patient ID</TableHead>
                       <TableHead>Assessment Ref</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Ownership</TableHead>
+                      <TableHead>Assessment</TableHead>
                       <TableHead>Last Updated</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>

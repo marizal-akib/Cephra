@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SearchInput } from "@/components/ui/search-input";
 
 type SelectedPatient = {
   id: string;
@@ -306,24 +307,45 @@ function FindPatientPanel({ onSelect }: { onSelect: (p: SelectedPatient) => void
     setLoading(false);
   }, [supabase, query]);
 
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void handleSearch();
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [handleSearch, query]);
+
+  const searchSuggestions = useMemo(
+    () =>
+      results.flatMap((patient) => [
+        `${patient.first_name} ${patient.last_name}`,
+        patient.mrn ?? patient.id.slice(0, 8).toUpperCase(),
+      ]),
+    [results]
+  );
+
   return (
     <Card>
       <CardHeader className="space-y-3">
         <CardTitle className="text-base">Find Existing Patient</CardTitle>
         <CardDescription>
-          Search your patient records by name or patient ID.
+          Search your patient records by name or patient ID. Suggestions appear as you type.
         </CardDescription>
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="pl-9"
-              placeholder="Search patient by name or patient ID"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onValueChange={setQuery}
+            suggestions={searchSuggestions}
+            className="flex-1"
+            placeholder="Who do you want to assess? Search by patient name or ID"
+            ariaLabel="Search existing patient by name or patient ID"
+          />
           <Button
             variant="outline"
             onClick={handleSearch}

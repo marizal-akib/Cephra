@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, SearchX } from "lucide-react";
+import { SearchX } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   ASSESSMENT_STATUS_BADGE_STYLES,
   assessmentReference,
@@ -57,21 +57,28 @@ export function PatientSearch({ encounters }: { encounters: DashboardEncounter[]
     });
   }, [encounters, normalizedQuery]);
 
+  const searchSuggestions = useMemo(() => {
+    const pool = new Set<string>();
+    for (const encounter of encounters) {
+      pool.add(patientDisplayName(encounter));
+      pool.add(patientDisplayId(encounter));
+      pool.add(assessmentReference(encounter.id));
+    }
+    return Array.from(pool);
+  }, [encounters]);
+
   return (
     <Card>
       <CardHeader className="space-y-4">
         <CardTitle className="text-base">Patient/Profile Search</CardTitle>
         <div className="space-y-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="pl-9"
-              placeholder="Search by patient name, patient ID, or assessment reference"
-              aria-label="Search by patient name, patient ID, or assessment reference"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onValueChange={setQuery}
+            suggestions={searchSuggestions}
+            placeholder="Who do you want to find? Name, patient ID, or assessment reference"
+            ariaLabel="Search by patient name, patient ID, or assessment reference"
+          />
           <div className="flex flex-wrap gap-2 text-label text-muted-foreground">
             <span className="rounded-full border border-border px-2 py-1">Name</span>
             <span className="rounded-full border border-border px-2 py-1">Patient ID</span>
