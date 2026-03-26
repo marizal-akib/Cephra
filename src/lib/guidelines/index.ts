@@ -21,6 +21,11 @@ import { trigeminalAutonomicCephalalgia } from "./data/trigeminal-autonomic-ceph
 import { migraineLatestEvidence } from "./data/migraine-latest-evidence";
 import { headachePaperSummaries } from "./data/headache-paper-summaries";
 import { clusterHeadacheLatestEvidence } from "./data/cluster-headache-latest-evidence";
+import { trigeminalNeuralgia } from "./data/trigeminal-neuralgia";
+import { cervicogenicHeadacheLatestEvidence } from "./data/cervicogenic-headache-latest-evidence";
+import { tacsLatestEvidence } from "./data/tacs-latest-evidence";
+import { tensionTypeHeadacheLatestEvidence } from "./data/tension-type-headache-latest-evidence";
+import { trigeminalNeuralgiaLatestEvidence } from "./data/trigeminal-neuralgia-latest-evidence";
 
 export const CATEGORIES: CategoryDefinition[] = [
   {
@@ -39,11 +44,6 @@ export const CATEGORIES: CategoryDefinition[] = [
     id: "imaging-investigations",
     label: "Imaging & Investigations",
     description: "When and how to investigate headache presentations",
-  },
-  {
-    id: "treatment-follow-up",
-    label: "Treatment & Follow-up",
-    description: "Management pathways and follow-up guidance",
   },
   {
     id: "evidence-summaries",
@@ -70,6 +70,11 @@ export const ALL_GUIDELINES: Guideline[] = [
   migraineLatestEvidence,
   headachePaperSummaries,
   clusterHeadacheLatestEvidence,
+  trigeminalNeuralgia,
+  cervicogenicHeadacheLatestEvidence,
+  tacsLatestEvidence,
+  tensionTypeHeadacheLatestEvidence,
+  trigeminalNeuralgiaLatestEvidence,
 ];
 
 export const GUIDELINE_BY_SLUG: Record<string, Guideline> = Object.fromEntries(

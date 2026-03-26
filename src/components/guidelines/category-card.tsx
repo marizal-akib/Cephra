@@ -4,7 +4,6 @@ import {
   Brain,
   AlertTriangle,
   ScanLine,
-  Stethoscope,
   FlaskConical,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +14,6 @@ const CATEGORY_ICONS: Record<GuidelineCategory, React.ElementType> = {
   "primary-headaches": Brain,
   "secondary-headaches-red-flags": AlertTriangle,
   "imaging-investigations": ScanLine,
-  "treatment-follow-up": Stethoscope,
   "evidence-summaries": FlaskConical,
 };
 

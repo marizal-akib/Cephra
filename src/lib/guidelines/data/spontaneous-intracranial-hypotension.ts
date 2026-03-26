@@ -5,7 +5,7 @@ export const spontaneousIntracranialHypotension: Guideline = {
   title: "Spontaneous Intracranial Hypotension (SIH)",
   subtitle:
     "Integrated synthesis of evidence with current UK/NICE, American, and European guidance",
-  category: "imaging-investigations",
+  category: "secondary-headaches-red-flags",
   tags: [
     "SIH",
     "spontaneous intracranial hypotension",

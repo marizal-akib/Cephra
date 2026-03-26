@@ -5,7 +5,7 @@ export const idiopathicIntracranialHypertension: Guideline = {
   title: "Idiopathic Intracranial Hypertension (IIH)",
   subtitle:
     "Standalone cohesive diagnostic and management guidance synthesising UK, European, American, and society sources",
-  category: "imaging-investigations",
+  category: "secondary-headaches-red-flags",
   tags: [
     "IIH",
     "idiopathic intracranial hypertension",

@@ -5,7 +5,7 @@ export const trigeminalAutonomicCephalalgia: Guideline = {
   title: "Adult Trigeminal Autonomic Cephalalgias",
   subtitle:
     "Integrated diagnosis and management guideline for cluster headache, paroxysmal hemicrania, SUNCT/SUNA, and hemicrania continua",
-  category: "treatment-follow-up",
+  category: "primary-headaches",
   tags: [
     "TAC",
     "trigeminal autonomic cephalalgia",

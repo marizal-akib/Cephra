@@ -19,7 +19,6 @@ export type GuidelineCategory =
   | "primary-headaches"
   | "secondary-headaches-red-flags"
   | "imaging-investigations"
-  | "treatment-follow-up"
   | "evidence-summaries";
 
 export interface CategoryDefinition {

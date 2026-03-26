@@ -5,7 +5,7 @@ export const chronicDailyHeadache: Guideline = {
   title: "Chronic Daily Headache and New Daily Persistent Headache",
   subtitle:
     "Practical guidance synthesising UpToDate source material with current NICE, American and European guidance",
-  category: "secondary-headaches-red-flags",
+  category: "primary-headaches",
   tags: [
     "chronic daily headache",
     "CDH",
