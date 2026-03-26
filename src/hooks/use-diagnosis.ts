@@ -14,8 +14,8 @@ export function useDiagnosis(
     // Follow-up path
     if (followUpAssessment) {
       const input = followUpToDiagnosticInput(followUpAssessment);
-      const hasData = Object.values(input).some(
-        (section) => Object.keys(section).length > 0
+      const hasData = Object.values(input).some((section) =>
+        Object.values(section).some((v) => v != null)
       );
       if (!hasData) return null;
       return runDiagnosticEngine(input);
@@ -37,8 +37,8 @@ export function useDiagnosis(
     };
 
     // Only run if at least some data exists
-    const hasData = Object.values(input).some(
-      (section) => Object.keys(section).length > 0
+    const hasData = Object.values(input).some((section) =>
+      Object.values(section).some((v) => v != null)
     );
     if (!hasData) return null;
 

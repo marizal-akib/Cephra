@@ -22,24 +22,29 @@ export const tensionType: RuleSet = {
       missing: i.pain.peak_intensity == null,
     },
     {
-      met: !bool(i.pain.worse_with_activity),
+      met: i.pain.worse_with_activity != null && !bool(i.pain.worse_with_activity),
       detail: "Not aggravated by routine physical activity",
       missing: i.pain.worse_with_activity == null,
     },
     {
-      met: !bool(i.symptoms.nausea),
+      met: i.symptoms.nausea != null && !bool(i.symptoms.nausea),
       detail: "No nausea",
+      missing: i.symptoms.nausea == null,
     },
     {
-      met: !bool(i.symptoms.vomiting),
+      met: i.symptoms.vomiting != null && !bool(i.symptoms.vomiting),
       detail: "No vomiting",
+      missing: i.symptoms.vomiting == null,
     },
   ],
 
   supportingAny: (i: DiagnosticInput) => [
     { met: bool(i.triggers.stress), detail: "Stress trigger", weight: 5 },
     {
-      met: !bool(i.aura.visual_positive) && !bool(i.aura.sensory_positive),
+      met:
+        (i.aura.visual_positive != null || i.aura.sensory_positive != null) &&
+        !bool(i.aura.visual_positive) &&
+        !bool(i.aura.sensory_positive),
       detail: "No aura",
       weight: 5,
     },
