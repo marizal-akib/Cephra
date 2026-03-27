@@ -519,6 +519,8 @@ function generateResultsReview(ctx: NoteContext): string {
     name: string;
     result: string;
     interpretation: string;
+    nameSpecify?: string;
+    abnormalDetails?: string;
   }
   const results = Array.isArray(workupData.investigation_results)
     ? (workupData.investigation_results as InvResult[]).filter((r) => r.name)
@@ -528,7 +530,11 @@ function generateResultsReview(ctx: NoteContext): string {
 
   const lines: string[] = [];
   for (const r of results) {
-    lines.push(`- ${r.name}: ${r.result || "pending"}. Interpretation: ${r.interpretation || "not yet stated"}.`);
+    const displayName = r.name === "Others" && r.nameSpecify ? r.nameSpecify : r.name;
+    const resultText = r.result === "Abnormal" && r.abnormalDetails
+      ? `Abnormal (${r.abnormalDetails})`
+      : (r.result || "pending");
+    lines.push(`- ${displayName}: ${resultText}. Interpretation: ${r.interpretation || "not yet stated"}.`);
   }
   return lines.join("\n");
 }

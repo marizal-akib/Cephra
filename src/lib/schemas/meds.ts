@@ -18,7 +18,9 @@ export const medsSchema = z.object({
     type: z.enum(["preventive", "acute", "other"]),
     dose: z.string(),
     benefit: z.string(),
+    benefit_detail: z.string().optional(),
     tolerability: z.string(),
+    tolerability_detail: z.string().optional(),
     action: z.enum(["continue", "increase", "decrease", "stop", "add", "switch"]),
   })).optional(),
 });

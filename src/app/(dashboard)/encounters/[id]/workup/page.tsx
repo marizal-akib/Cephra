@@ -36,7 +36,13 @@ interface InvestigationResult {
   name: string;
   result: string;
   interpretation: string;
+  nameSpecify?: string;
+  abnormalDetails?: string;
 }
+import {
+  INVESTIGATION_NAME_OPTIONS,
+  INVESTIGATION_RESULT_OPTIONS,
+} from "@/lib/schemas/followup/investigations";
 import { cn } from "@/lib/utils";
 import type { PhenotypeResult } from "@/lib/engine/types";
 
@@ -456,7 +462,7 @@ export default function WorkupPage() {
               onClick={() =>
                 setInvestigationResults((prev) => [
                   ...prev,
-                  { name: "", result: "", interpretation: "" },
+                  { name: "", result: "", interpretation: "", nameSpecify: "", abnormalDetails: "" },
                 ])
               }
             >
@@ -486,31 +492,79 @@ export default function WorkupPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Investigation Name</Label>
-                <Input
-                  value={inv.name}
-                  onChange={(e) =>
+                <Select
+                  value={inv.name || ""}
+                  onValueChange={(val) =>
                     setInvestigationResults((prev) => {
                       const next = [...prev];
-                      next[idx] = { ...next[idx], name: e.target.value };
+                      next[idx] = { ...next[idx], name: val, nameSpecify: val === "Others" ? next[idx].nameSpecify : "" };
                       return next;
                     })
                   }
-                  placeholder="e.g. MRI brain with contrast"
-                />
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select investigation..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INVESTIGATION_NAME_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {inv.name === "Others" && (
+                  <div className="space-y-1 mt-1.5">
+                    <Label className="text-xs">Specify Investigation</Label>
+                    <Input
+                      value={inv.nameSpecify || ""}
+                      onChange={(e) =>
+                        setInvestigationResults((prev) => {
+                          const next = [...prev];
+                          next[idx] = { ...next[idx], nameSpecify: e.target.value };
+                          return next;
+                        })
+                      }
+                      placeholder="Specify investigation name..."
+                    />
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Result</Label>
-                <Input
-                  value={inv.result}
-                  onChange={(e) =>
+                <Select
+                  value={inv.result || ""}
+                  onValueChange={(val) =>
                     setInvestigationResults((prev) => {
                       const next = [...prev];
-                      next[idx] = { ...next[idx], result: e.target.value };
+                      next[idx] = { ...next[idx], result: val, abnormalDetails: val === "Abnormal" ? next[idx].abnormalDetails : "" };
                       return next;
                     })
                   }
-                  placeholder="e.g. Normal, no structural lesion"
-                />
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select result..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INVESTIGATION_RESULT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {inv.result === "Abnormal" && (
+                  <div className="space-y-1 mt-1.5">
+                    <Label className="text-xs">Abnormal Result Details</Label>
+                    <Input
+                      value={inv.abnormalDetails || ""}
+                      onChange={(e) =>
+                        setInvestigationResults((prev) => {
+                          const next = [...prev];
+                          next[idx] = { ...next[idx], abnormalDetails: e.target.value };
+                          return next;
+                        })
+                      }
+                      placeholder="Describe the abnormality..."
+                    />
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Clinical Interpretation</Label>

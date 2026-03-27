@@ -25,7 +25,9 @@ interface MedicationAction {
   type: "preventive" | "acute" | "other";
   dose: string;
   benefit: string;
+  benefit_detail?: string;
   tolerability: string;
+  tolerability_detail?: string;
   action: "continue" | "increase" | "decrease" | "stop" | "add" | "switch";
 }
 
@@ -171,7 +173,7 @@ export default function MedsPage() {
                     className="h-7 gap-1 text-xs"
                     onClick={() => {
                       const actions = (Array.isArray(v.medication_actions) ? v.medication_actions : []) as MedicationAction[];
-                      set("medication_actions", [...actions, { drug: "", type: "acute", dose: "", benefit: "", tolerability: "", action: "continue" }]);
+                      set("medication_actions", [...actions, { drug: "", type: "acute", dose: "", benefit: "", benefit_detail: "", tolerability: "", tolerability_detail: "", action: "continue" }]);
                     }}
                   >
                     <Plus className="h-3 w-3" />Add Medication
@@ -268,27 +270,34 @@ export default function MedsPage() {
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div className="space-y-1">
                             <Label className="text-xs">Benefit</Label>
-                            <Input
-                              value={med.benefit}
-                              onChange={(e) => {
-                                const actions = [...(v.medication_actions as MedicationAction[])];
-                                actions[idx] = { ...actions[idx], benefit: e.target.value };
-                                set("medication_actions", actions);
-                              }}
-                              placeholder="e.g. 50% reduction in headache days"
-                            />
+                            <Select value={med.benefit} onValueChange={(val) => { const actions = [...(v.medication_actions as MedicationAction[])]; actions[idx] = { ...actions[idx], benefit: val, benefit_detail: val === "No effect" ? actions[idx].benefit_detail : "" }; set("medication_actions", actions); }}>
+                              <SelectTrigger className="w-full"><SelectValue placeholder="Select benefit" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Aborts headache in 100% episodes">Aborts headache in 100% episodes</SelectItem>
+                                <SelectItem value="Aborts headache more than 50% episodes">Aborts headache &gt;50% episodes</SelectItem>
+                                <SelectItem value="Aborts headache less than 50% episodes">Aborts headache &lt;50% episodes</SelectItem>
+                                <SelectItem value="Reduced frequency and severity more than 50%">Reduced frequency &amp; severity &gt;50%</SelectItem>
+                                <SelectItem value="Reduced frequency and severity less than 50%">Reduced frequency &amp; severity &lt;50%</SelectItem>
+                                <SelectItem value="No effect">No effect</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {med.benefit === "No effect" && (
+                              <Input value={med.benefit_detail || ""} onChange={(e) => { const actions = [...(v.medication_actions as MedicationAction[])]; actions[idx] = { ...actions[idx], benefit_detail: e.target.value }; set("medication_actions", actions); }} placeholder="Optional comment..." className="mt-1.5" />
+                            )}
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Tolerability</Label>
-                            <Input
-                              value={med.tolerability}
-                              onChange={(e) => {
-                                const actions = [...(v.medication_actions as MedicationAction[])];
-                                actions[idx] = { ...actions[idx], tolerability: e.target.value };
-                                set("medication_actions", actions);
-                              }}
-                              placeholder="e.g. Mild paraesthesia, well tolerated"
-                            />
+                            <Select value={med.tolerability} onValueChange={(val) => { const actions = [...(v.medication_actions as MedicationAction[])]; actions[idx] = { ...actions[idx], tolerability: val, tolerability_detail: (val === "Minor side effects" || val === "Severe side effects") ? actions[idx].tolerability_detail : "" }; set("medication_actions", actions); }}>
+                              <SelectTrigger className="w-full"><SelectValue placeholder="Select tolerability" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Well tolerated">Well tolerated</SelectItem>
+                                <SelectItem value="Minor side effects">Minor side effects</SelectItem>
+                                <SelectItem value="Severe side effects">Severe side effects</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {(med.tolerability === "Minor side effects" || med.tolerability === "Severe side effects") && (
+                              <Input value={med.tolerability_detail || ""} onChange={(e) => { const actions = [...(v.medication_actions as MedicationAction[])]; actions[idx] = { ...actions[idx], tolerability_detail: e.target.value }; set("medication_actions", actions); }} placeholder="e.g. Paraesthesia, fatigue..." className="mt-1.5" />
+                            )}
                           </div>
                         </div>
                       </div>
