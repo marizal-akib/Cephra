@@ -12,8 +12,8 @@ import {
   MoreHorizontal,
   Plus,
   Play,
+  RefreshCw,
   Search,
-  Send,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -254,7 +254,7 @@ export function AssessmentWorkflowList({
           used_at: null,
         },
       }));
-      toast.success("Questionnaire link refreshed.");
+      toast.success("New questionnaire link generated.");
     } catch {
       toast.error("Unable to refresh questionnaire link.");
     } finally {
@@ -362,9 +362,9 @@ export function AssessmentWorkflowList({
             {resendingEncounterId === encounter.id ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Send className="h-3.5 w-3.5" />
+              <RefreshCw className="h-3.5 w-3.5" />
             )}
-            Resend Link
+            Generate New Link
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onClick={() => setDeleteTarget(encounter)}>
             <Trash2 className="h-3.5 w-3.5" />
@@ -541,16 +541,17 @@ export function AssessmentWorkflowList({
             size="sm"
             onClick={() => resendQuestionnaireLink(encounter)}
             disabled={resendingEncounterId === encounter.id}
+            title="Creates a new secure link. Previous link expires."
           >
             {resendingEncounterId === encounter.id ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Resending...
+                Generating...
               </>
             ) : (
               <>
-                <Send className="h-3.5 w-3.5" />
-                Resend Link
+                <RefreshCw className="h-3.5 w-3.5" />
+                Generate New Link
               </>
             )}
           </Button>
@@ -637,16 +638,17 @@ export function AssessmentWorkflowList({
           className="h-11 min-h-11 flex-1"
           onClick={() => resendQuestionnaireLink(encounter)}
           disabled={resendingEncounterId === encounter.id}
+          title="Creates a new secure link. Previous link expires."
         >
           {resendingEncounterId === encounter.id ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Resending...
+              Generating...
             </>
           ) : (
             <>
-              <Send className="h-3.5 w-3.5" />
-              Resend Link
+              <RefreshCw className="h-3.5 w-3.5" />
+              Generate New Link
             </>
           )}
         </Button>

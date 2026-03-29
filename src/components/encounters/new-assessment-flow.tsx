@@ -9,10 +9,12 @@ import {
   ClipboardCopy,
   ExternalLink,
   Loader2,
+  Mail,
+  MessageCircle,
   Search,
-  Send,
   UserPlus,
 } from "lucide-react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { generateQuestionnaireUrl, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,7 @@ type CreatedAssessment = {
   createdAt: string;
   questionnaireUrl: string | null;
   patientEmail: string | null;
+  patientContact: string | null;
   encounterType: "initial" | "follow_up";
 };
 
@@ -771,6 +774,7 @@ function RecordStep({
           createdAt: encounter.created_at,
           questionnaireUrl: null,
           patientEmail: null,
+          patientContact: patient.contact || null,
           encounterType: "follow_up",
         });
       } else {
@@ -798,6 +802,7 @@ function RecordStep({
           createdAt: encounter.created_at,
           questionnaireUrl: url,
           patientEmail: email,
+          patientContact: patient.contact || null,
           encounterType: "initial",
         });
       }
@@ -905,16 +910,22 @@ function QuestionnaireStep({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const mailtoUrl = assessment.questionnaireUrl
-    ? buildMailtoUrl(assessment.patientEmail, assessment.questionnaireUrl)
-    : null;
+  const contact = assessment.patientContact;
+  const hasEmail = !!contact && contact.includes("@");
+  const hasPhone = !!contact && !contact.includes("@") && /\d/.test(contact);
+  const invalidContact = !!contact && !hasEmail && !hasPhone;
+
+  const mailtoUrl =
+    assessment.questionnaireUrl && hasEmail
+      ? buildMailtoUrl(assessment.patientEmail, assessment.questionnaireUrl)
+      : null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Patient Questionnaire</CardTitle>
+        <CardTitle className="text-base">Share Questionnaire</CardTitle>
         <CardDescription>
-          Share the intake questionnaire with your patient before the
+          Share the intake questionnaire link with your patient before the
           consultation.
         </CardDescription>
       </CardHeader>
@@ -942,61 +953,101 @@ function QuestionnaireStep({
                 {assessment.questionnaireUrl}
               </p>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Link expires in 72 hours · Single use only
+            </p>
           </div>
         )}
 
-        <div className="grid gap-2 sm:grid-cols-3">
-          <Button
-            variant="outline"
-            className="gap-2"
-            disabled={!mailtoUrl}
-            asChild={!!mailtoUrl}
-          >
-            {mailtoUrl ? (
-              <a href={mailtoUrl}>
-                <Send className="h-4 w-4" />
-                Send Questionnaire
-              </a>
-            ) : (
-              <>
-                <Send className="h-4 w-4" />
-                Send Questionnaire
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={copyLink}
-            disabled={!assessment.questionnaireUrl}
-          >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4" />
-                Copied
-              </>
-            ) : (
-              <>
-                <ClipboardCopy className="h-4 w-4" />
-                Copy Link
-              </>
-            )}
-          </Button>
-          <Button variant="outline" className="gap-2" asChild>
-            <Link
-              href={assessment.questionnaireUrl ?? "#"}
-              target="_blank"
-              rel="noopener noreferrer"
+        <div className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {/* Primary: Copy Link */}
+            <Button
+              className="gap-2"
+              onClick={copyLink}
+              disabled={!assessment.questionnaireUrl}
             >
-              <ExternalLink className="h-4 w-4" />
-              Preview
-            </Link>
-          </Button>
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Link Copied
+                </>
+              ) : (
+                <>
+                  <ClipboardCopy className="h-4 w-4" />
+                  Copy Link
+                </>
+              )}
+            </Button>
+
+            {/* Placeholder: WhatsApp (always disabled in Phase 1) */}
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled
+              title={hasPhone ? "Coming soon" : "Phone number required"}
+            >
+              <MessageCircle className="h-4 w-4" />
+              Share via WhatsApp
+            </Button>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {/* Secondary: Email draft */}
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={!mailtoUrl}
+              asChild={!!mailtoUrl}
+              title={!hasEmail ? "Email address required" : undefined}
+            >
+              {mailtoUrl ? (
+                <a href={mailtoUrl}>
+                  <Mail className="h-4 w-4" />
+                  Open Email Draft
+                </a>
+              ) : (
+                <>
+                  <Mail className="h-4 w-4" />
+                  Open Email Draft
+                </>
+              )}
+            </Button>
+
+            {/* Tertiary: Preview */}
+            <Button variant="ghost" className="gap-2" asChild>
+              <Link
+                href={assessment.questionnaireUrl ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Preview
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        {!assessment.patientEmail && (
+        {/* Contact status + helper text */}
+        {hasEmail && (
           <p className="text-xs text-muted-foreground">
-            No patient email saved — recipient will need to be added manually.
+            Opens your email app with a prefilled draft. You still need to press
+            send. If nothing opens, use Copy Link instead.
+          </p>
+        )}
+        {hasPhone && (
+          <p className="text-xs text-muted-foreground">
+            Phone number detected. WhatsApp sharing coming soon.
+          </p>
+        )}
+        {!contact && (
+          <p className="text-xs text-muted-foreground">
+            No patient contact added. Use Copy Link to share manually.
+          </p>
+        )}
+        {invalidContact && (
+          <p className="text-xs text-amber-600">
+            Enter a valid email or phone number to enable direct sharing.
           </p>
         )}
 
