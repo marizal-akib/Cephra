@@ -95,6 +95,7 @@ export interface ClinicianAssessment {
   aura: Record<string, unknown>;
   autonomic: Record<string, unknown>;
   triggers: Record<string, unknown>;
+  previous_investigations: Record<string, unknown>;
   medications: Record<string, unknown>;
   clinical_examination: Record<string, unknown>;
   workup_data: Record<string, unknown>;
@@ -135,13 +136,18 @@ export const ENCOUNTER_STEPS = [
     label: "Past Medical History",
     path: "past-medical-history",
   },
-  { key: "red-flags", label: "Red Flags", path: "red-flags" },
   { key: "pattern", label: "Pattern", path: "pattern" },
   { key: "pain", label: "Pain", path: "pain" },
   { key: "symptoms", label: "Symptoms", path: "symptoms" },
+  { key: "red-flags", label: "Red Flags", path: "red-flags" },
   { key: "aura", label: "Aura", path: "aura" },
   { key: "autonomic", label: "Autonomic", path: "autonomic" },
   { key: "triggers", label: "Triggers", path: "triggers" },
+  {
+    key: "previous-investigations",
+    label: "Previous Investigations",
+    path: "previous-investigations",
+  },
   { key: "meds", label: "Medications", path: "meds" },
   {
     key: "clinical-examination",
@@ -178,6 +184,7 @@ export type AssessmentSection =
   | "aura"
   | "autonomic"
   | "triggers"
+  | "previous_investigations"
   | "medications"
   | "clinical_examination"
   | "follow_up";
@@ -192,6 +199,7 @@ export const SECTION_TO_STEP: Record<AssessmentSection, string> = {
   aura: "aura",
   autonomic: "autonomic",
   triggers: "triggers",
+  previous_investigations: "previous-investigations",
   medications: "meds",
   clinical_examination: "clinical-examination",
   follow_up: "workup",
