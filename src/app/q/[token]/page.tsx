@@ -219,6 +219,9 @@ export default function QuestionnairePage() {
                       required
                       autoComplete="bday"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Any common format works (e.g. 1985-03-27 or 27/03/1985).
+                    </p>
                   </div>
                 )}
 

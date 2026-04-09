@@ -337,4 +337,17 @@ h3 {
   .print-note-content {
     padding: 0 !important;
   }
+
+  /* Share-questionnaire QR print override.
+     The rules above hide dialogs and sheets so the patient note prints cleanly.
+     When the share QR sheet enters print mode it appends a #cephra-print-share
+     node directly to <body> and sets the .cephra-printing-share class so this
+     block takes over: hide everything except that node. */
+  body.cephra-printing-share > *:not(#cephra-print-share) {
+    display: none !important;
+  }
+
+  body.cephra-printing-share #cephra-print-share {
+    display: block !important;
+  }
 }

@@ -6,17 +6,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
   Check,
-  ClipboardCopy,
-  ExternalLink,
+  Copy,
+  Eye,
+  Link as LinkIcon,
   Loader2,
-  Mail,
-  MessageCircle,
+  QrCode,
   Search,
+  Share2,
   UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { generateQuestionnaireUrl, formatDate } from "@/lib/utils";
+import { cn, generateQuestionnaireUrl, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,6 +40,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SearchInput } from "@/components/ui/search-input";
+import {
+  ShareQuestionnaireSheet,
+  QrCodeSheet,
+} from "./share-questionnaire-sheet";
+import { detectContactKind, writeToClipboard } from "@/lib/share";
 
 type SelectedPatient = {
   id: string;
@@ -468,13 +474,14 @@ function CreatePatientPanel({ onCreated }: { onCreated: (p: SelectedPatient) => 
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="np-first">First Name</Label>
               <Input
                 id="np-first"
                 value={form.firstName}
                 onChange={(e) => update("firstName", e.target.value)}
+                autoComplete="given-name"
                 required
               />
             </div>
@@ -484,40 +491,47 @@ function CreatePatientPanel({ onCreated }: { onCreated: (p: SelectedPatient) => 
                 id="np-last"
                 value={form.lastName}
                 onChange={(e) => update("lastName", e.target.value)}
+                autoComplete="family-name"
                 required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="np-dob">Date of Birth</Label>
-              <Input
-                id="np-dob"
-                type="date"
-                value={form.dateOfBirth}
-                onChange={(e) => update("dateOfBirth", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="np-sex">Sex</Label>
-              <Select
-                value={form.sex}
-                onValueChange={(v) => update("sex", v)}
-              >
-                <SelectTrigger id="np-sex" className="w-full">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="np-dob">
+              Date of Birth <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="np-dob"
+              type="date"
+              value={form.dateOfBirth}
+              onChange={(e) => update("dateOfBirth", e.target.value)}
+              autoComplete="bday"
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Used to verify the patient when they open the questionnaire link.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="np-sex">Sex</Label>
+            <Select
+              value={form.sex}
+              onValueChange={(v) => update("sex", v)}
+            >
+              <SelectTrigger id="np-sex" className="w-full">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="np-contact">Contact (optional)</Label>
               <Input
@@ -525,6 +539,7 @@ function CreatePatientPanel({ onCreated }: { onCreated: (p: SelectedPatient) => 
                 value={form.contact}
                 onChange={(e) => update("contact", e.target.value)}
                 placeholder="Email or phone"
+                inputMode="email"
               />
             </div>
             <div className="space-y-2">
@@ -885,15 +900,6 @@ function RecordStep({
 // Step 3 — Questionnaire actions
 // ---------------------------------------------------------------------------
 
-function buildMailtoUrl(email: string | null, questionnaireUrl: string) {
-  const subject = encodeURIComponent("Cephra Questionnaire Link");
-  const body = encodeURIComponent(
-    `Hello,\n\nPlease use the secure link below to complete your questionnaire before your appointment:\n\n${questionnaireUrl}\n\nIf you have any issues opening the link, please contact the clinic.`
-  );
-  const to = email || "";
-  return `mailto:${to}?subject=${subject}&body=${body}`;
-}
-
 function QuestionnaireStep({
   assessment,
   onContinue,
@@ -901,32 +907,59 @@ function QuestionnaireStep({
   assessment: CreatedAssessment;
   onContinue: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
-  async function copyLink() {
-    if (!assessment.questionnaireUrl) return;
-    await navigator.clipboard.writeText(assessment.questionnaireUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const url = assessment.questionnaireUrl;
+  const linkReady = !!url;
+  const contactInfo = detectContactKind(assessment.patientContact);
+
+  const contactPill = (() => {
+    switch (contactInfo.kind) {
+      case "email":
+        return {
+          label: `Sending to ${contactInfo.value}`,
+          tone: "neutral" as const,
+        };
+      case "phone":
+        return {
+          label: `${contactInfo.value} on file`,
+          tone: "neutral" as const,
+        };
+      case "invalid":
+        return {
+          label: `Unrecognised contact: ${contactInfo.value}`,
+          tone: "warning" as const,
+        };
+      case "none":
+      default:
+        return {
+          label: "No contact on file",
+          tone: "warning" as const,
+        };
+    }
+  })();
+
+  async function handleInlineCopy() {
+    if (!url) return;
+    const ok = await writeToClipboard(url);
+    if (ok) toast.success("Link copied");
+    else toast.error("Could not copy — please copy manually");
   }
 
-  const contact = assessment.patientContact;
-  const hasEmail = !!contact && contact.includes("@");
-  const hasPhone = !!contact && !contact.includes("@") && /\d/.test(contact);
-  const invalidContact = !!contact && !hasEmail && !hasPhone;
-
-  const mailtoUrl =
-    assessment.questionnaireUrl && hasEmail
-      ? buildMailtoUrl(assessment.patientEmail, assessment.questionnaireUrl)
-      : null;
+  function handlePreview() {
+    if (!url) return;
+    const win = window.open(url, "_blank", "noopener,noreferrer");
+    if (!win) toast.error("Pop-up blocked — please allow pop-ups for this site");
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Share Questionnaire</CardTitle>
         <CardDescription>
-          Share the intake questionnaire link with your patient before the
-          consultation.
+          Send the secure intake link to {assessment.patientName} before their
+          appointment.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -943,118 +976,106 @@ function QuestionnaireStep({
 
         <Separator />
 
-        {assessment.questionnaireUrl && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">
-              Questionnaire Link
+        {/* Link container */}
+        <div
+          role="group"
+          aria-label="Questionnaire link"
+          className="rounded-xl border bg-muted/40 px-3 py-2.5"
+        >
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Questionnaire Link
+          </p>
+          <div className="mt-1 flex items-start gap-2">
+            <LinkIcon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="min-w-0 flex-1 break-all font-mono text-xs">
+              {linkReady ? url : "Generating link…"}
             </p>
-            <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
-              <p className="break-all font-mono text-xs">
-                {assessment.questionnaireUrl}
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Link expires in 72 hours · Single use only
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {/* Primary: Copy Link */}
             <Button
-              className="gap-2"
-              onClick={copyLink}
-              disabled={!assessment.questionnaireUrl}
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Copy link"
+              title="Copy link"
+              disabled={!linkReady}
+              onClick={handleInlineCopy}
             >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  Link Copied
-                </>
-              ) : (
-                <>
-                  <ClipboardCopy className="h-4 w-4" />
-                  Copy Link
-                </>
-              )}
-            </Button>
-
-            {/* Placeholder: WhatsApp (always disabled in Phase 1) */}
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled
-              title={hasPhone ? "Coming soon" : "Phone number required"}
-            >
-              <MessageCircle className="h-4 w-4" />
-              Share via WhatsApp
+              <Copy className="h-4 w-4" />
             </Button>
           </div>
-
-          <div className="grid gap-2 sm:grid-cols-2">
-            {/* Secondary: Email draft */}
-            <Button
-              variant="outline"
-              className="gap-2"
-              disabled={!mailtoUrl}
-              asChild={!!mailtoUrl}
-              title={!hasEmail ? "Email address required" : undefined}
-            >
-              {mailtoUrl ? (
-                <a href={mailtoUrl}>
-                  <Mail className="h-4 w-4" />
-                  Open Email Draft
-                </a>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4" />
-                  Open Email Draft
-                </>
-              )}
-            </Button>
-
-            {/* Tertiary: Preview */}
-            <Button variant="ghost" className="gap-2" asChild>
-              <Link
-                href={assessment.questionnaireUrl ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Preview
-              </Link>
-            </Button>
-          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Expires in 72 hours · Single use only
+          </p>
         </div>
 
-        {/* Contact status + helper text */}
-        {hasEmail && (
-          <p className="text-xs text-muted-foreground">
-            Opens your email app with a prefilled draft. You still need to press
-            send. If nothing opens, use Copy Link instead.
-          </p>
-        )}
-        {hasPhone && (
-          <p className="text-xs text-muted-foreground">
-            Phone number detected. WhatsApp sharing coming soon.
-          </p>
-        )}
-        {!contact && (
-          <p className="text-xs text-muted-foreground">
-            No patient contact added. Use Copy Link to share manually.
-          </p>
-        )}
-        {invalidContact && (
-          <p className="text-xs text-amber-600">
-            Enter a valid email or phone number to enable direct sharing.
-          </p>
-        )}
+        {/* Contact status pill */}
+        <div
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs",
+            contactPill.tone === "warning"
+              ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+              : "border-border bg-background text-muted-foreground",
+          )}
+        >
+          {contactPill.label}
+        </div>
+
+        {/* Primary CTA */}
+        <Button
+          type="button"
+          className="w-full"
+          disabled={!linkReady}
+          onClick={() => setShareOpen(true)}
+        >
+          <Share2 className="h-4 w-4" />
+          Share questionnaire
+        </Button>
+
+        {/* Secondary actions */}
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!linkReady}
+            onClick={handlePreview}
+          >
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={!linkReady}
+            onClick={() => setQrOpen(true)}
+          >
+            <QrCode className="h-4 w-4" />
+            QR
+          </Button>
+        </div>
 
         <Button className="w-full" onClick={onContinue}>
           Continue
         </Button>
       </CardContent>
+
+      {linkReady && (
+        <>
+          <ShareQuestionnaireSheet
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+            questionnaireUrl={url}
+            patientName={assessment.patientName}
+            patientEmail={assessment.patientEmail}
+          />
+          <QrCodeSheet
+            open={qrOpen}
+            onOpenChange={setQrOpen}
+            url={url}
+            patientName={assessment.patientName}
+          />
+        </>
+      )}
     </Card>
   );
 }
