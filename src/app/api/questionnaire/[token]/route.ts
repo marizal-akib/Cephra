@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateReferenceNumber } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 // GET: Validate token
 export async function GET(
   _request: Request,

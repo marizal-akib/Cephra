@@ -11,6 +11,12 @@ export function createAdminClient() {
 
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
   );
 }
