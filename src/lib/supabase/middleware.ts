@@ -32,8 +32,8 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublicPath = pathname === "/" || pathname.startsWith("/docs/user-guide");
 
-  // Allow patient questionnaire routes without auth
-  if (pathname.startsWith("/q/")) {
+  // Allow patient questionnaire routes and their API without auth
+  if (pathname.startsWith("/q/") || pathname.startsWith("/api/questionnaire/")) {
     return supabaseResponse;
   }
 
