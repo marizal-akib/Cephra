@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   FolderOpen,
   Plus,
   Workflow,
@@ -80,12 +83,22 @@ function formatUpdatedAt(value: string) {
 export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter[] }) {
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [showCompleted, setShowCompleted] = useState(false);
+
   const priorityEncounters = useMemo(
     () =>
       encounters.filter((encounter) => {
         const status = deriveAssessmentStatus(encounter);
         return PRIORITY_ORDER.includes(status as PriorityStatus);
       }),
+    [encounters]
+  );
+
+  const completedEncounters = useMemo(
+    () =>
+      encounters.filter(
+        (encounter) => deriveAssessmentStatus(encounter) === "completed"
+      ),
     [encounters]
   );
 
@@ -315,6 +328,84 @@ export function DoctorDashboard({ encounters }: { encounters: DashboardEncounter
             ) : null}
           </CardContent>
         </Card>
+
+        <Card className="order-3 xl:col-span-2">
+          <CardHeader className="pb-2">
+            <button
+              type="button"
+              onClick={() => setShowCompleted((v) => !v)}
+              className="flex w-full items-center justify-between gap-2"
+            >
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Completed Assessments
+                <Badge variant="secondary" className="bg-emerald-50 text-emerald-800">
+                  {completedEncounters.length}
+                </Badge>
+              </CardTitle>
+              {showCompleted ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+          </CardHeader>
+          {showCompleted && (
+            <CardContent className="space-y-3">
+              {completedEncounters.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+                  No completed assessments yet.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {completedEncounters.map((encounter) => {
+                    const isFollowUp = encounter.encounter_type === "follow_up";
+                    const href = isFollowUp
+                      ? `/encounters/${encounter.id}/fu-letter`
+                      : `/encounters/${encounter.id}/report`;
+                    return (
+                      <div
+                        key={encounter.id}
+                        className="rounded-lg border border-border bg-background p-4"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {patientDisplayName(encounter)}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Patient ID: {patientDisplayId(encounter)}
+                              </p>
+                            </div>
+                            <Badge
+                              variant="secondary"
+                              className={ASSESSMENT_STATUS_BADGE_STYLES.completed}
+                            >
+                              Completed
+                            </Badge>
+                          </div>
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>Ref: {assessmentReference(encounter.id)}</p>
+                            <p>Last updated: {formatUpdatedAt(encounter.updated_at)}</p>
+                          </div>
+                          <Button
+                            asChild
+                            variant="outline"
+                            className="h-10 w-full md:w-auto"
+                          >
+                            <Link href={href}>View Report</Link>
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+
       </section>
     </div>
   );

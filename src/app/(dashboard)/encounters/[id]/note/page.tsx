@@ -311,7 +311,7 @@ export default function NotePage() {
       setShowUpdateReasonDialog(false);
       setUpdateReason("");
       toast.success("Note updated (v" + newVersion + ").");
-      router.push(`/encounters/${encounterId}/output`);
+      router.push(`/encounters/${encounterId}/report`);
     } catch { toast.error("Unable to save note update."); }
     finally { setIsUpdatingNote(false); }
   }

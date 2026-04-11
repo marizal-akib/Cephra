@@ -100,9 +100,17 @@ export interface ClinicianAssessment {
   clinical_examination: Record<string, unknown>;
   workup_data: Record<string, unknown>;
   follow_up: Record<string, unknown>;
+  amendments: AssessmentAmendment[];
   clinician_notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AssessmentAmendment {
+  reason: string;
+  clinician_id: string;
+  clinician_name: string;
+  created_at: string;
 }
 
 export interface DiagnosticRun {

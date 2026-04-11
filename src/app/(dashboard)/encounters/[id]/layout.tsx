@@ -5,7 +5,7 @@ import { useEncounter } from "@/hooks/use-encounter";
 import { useDiagnosis } from "@/hooks/use-diagnosis";
 import { StepNav, StepNavLinks } from "@/components/layout/step-nav";
 import { DiagnosisRail, DiagnosisRailContent } from "@/components/layout/diagnosis-rail";
-import { createContext, useContext, useCallback, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useState } from "react";
 import {
   ENCOUNTER_STEPS,
   FOLLOWUP_STEPS,
@@ -20,7 +20,7 @@ import type {
 } from "@/types";
 import type { DiagnosticOutput } from "@/lib/engine/types";
 import type { BaselineValues } from "@/lib/follow-up/baseline-adapter";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ListTree, Stethoscope } from "lucide-react";
@@ -65,6 +65,7 @@ export default function EncounterLayout({
   params: Promise<{ id: string }>;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { id } = use(params);
   const {
     encounter,
@@ -90,6 +91,20 @@ export default function EncounterLayout({
   const mergedEncounter = encounter
     ? { ...encounter, ...localEncounterUpdates }
     : encounter;
+
+  // Completed initial assessments render as a read-only Assessment Report.
+  // Redirect any step URL to /report so the clinician always lands on the
+  // report view. Follow-up encounters keep their step flow (out of scope).
+  const showReport =
+    mergedEncounter?.status === "completed" &&
+    mergedEncounter?.encounter_type === "initial";
+  const isOnReportRoute = pathname?.endsWith(`/${id}/report`) ?? false;
+
+  useEffect(() => {
+    if (showReport && !isOnReportRoute) {
+      router.replace(`/encounters/${id}/report`);
+    }
+  }, [showReport, isOnReportRoute, id, router]);
 
   // Merge remote + local assessment for real-time engine updates
   const mergedAssessment = localAssessment
@@ -201,56 +216,62 @@ export default function EncounterLayout({
         refetch,
       }}
     >
-      <div className="flex h-full flex-col xl:flex-row">
-        <div className="flex items-center justify-between gap-2 border-b border-border bg-background px-4 py-3 lg:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
-                <ListTree className="h-4 w-4" />
-                Steps
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] p-0">
-              <SheetHeader className="border-b border-border px-4 py-3">
-                <SheetTitle>
-                  {isFollowUp ? "Follow-up Steps" : "Assessment Steps"}
-                </SheetTitle>
-              </SheetHeader>
-              <StepNavLinks
-                encounterId={id}
-                completedSteps={completedSteps}
-                redFlagged={diagnosticOutput?.redFlagResult.flagged}
-                steps={isFollowUp ? [...FOLLOWUP_STEPS] : undefined}
-              />
-            </SheetContent>
-          </Sheet>
-          <p className="truncate text-sm font-medium text-muted-foreground">
-            {currentStep?.label ?? "Assessment"}
-          </p>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm" disabled={!diagnosticOutput}>
-                <Stethoscope className="h-4 w-4" />
-                Diagnosis
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[320px] overflow-y-auto p-4">
-              <SheetHeader className="pb-3">
-                <SheetTitle>Diagnosis Summary</SheetTitle>
-              </SheetHeader>
-              <DiagnosisRailContent output={diagnosticOutput} />
-            </SheetContent>
-          </Sheet>
+      {showReport && isOnReportRoute ? (
+        // Completed initial assessment → render the report full-width,
+        // without the 14-step side nav or diagnosis rail.
+        <div className="h-full overflow-y-auto p-4 lg:p-6">{children}</div>
+      ) : (
+        <div className="flex h-full flex-col xl:flex-row">
+          <div className="flex items-center justify-between gap-2 border-b border-border bg-background px-4 py-3 lg:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <ListTree className="h-4 w-4" />
+                  Steps
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0">
+                <SheetHeader className="border-b border-border px-4 py-3">
+                  <SheetTitle>
+                    {isFollowUp ? "Follow-up Steps" : "Assessment Steps"}
+                  </SheetTitle>
+                </SheetHeader>
+                <StepNavLinks
+                  encounterId={id}
+                  completedSteps={completedSteps}
+                  redFlagged={diagnosticOutput?.redFlagResult.flagged}
+                  steps={isFollowUp ? [...FOLLOWUP_STEPS] : undefined}
+                />
+              </SheetContent>
+            </Sheet>
+            <p className="truncate text-sm font-medium text-muted-foreground">
+              {currentStep?.label ?? "Assessment"}
+            </p>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" disabled={!diagnosticOutput}>
+                  <Stethoscope className="h-4 w-4" />
+                  Diagnosis
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[320px] overflow-y-auto p-4">
+                <SheetHeader className="pb-3">
+                  <SheetTitle>Diagnosis Summary</SheetTitle>
+                </SheetHeader>
+                <DiagnosisRailContent output={diagnosticOutput} />
+              </SheetContent>
+            </Sheet>
+          </div>
+          <StepNav
+            encounterId={id}
+            completedSteps={completedSteps}
+            redFlagged={diagnosticOutput?.redFlagResult.flagged}
+            steps={isFollowUp ? [...FOLLOWUP_STEPS] : undefined}
+          />
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</div>
+          <DiagnosisRail output={diagnosticOutput} />
         </div>
-        <StepNav
-          encounterId={id}
-          completedSteps={completedSteps}
-          redFlagged={diagnosticOutput?.redFlagResult.flagged}
-          steps={isFollowUp ? [...FOLLOWUP_STEPS] : undefined}
-        />
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</div>
-        <DiagnosisRail output={diagnosticOutput} />
-      </div>
+      )}
     </EncounterContext.Provider>
   );
 }
