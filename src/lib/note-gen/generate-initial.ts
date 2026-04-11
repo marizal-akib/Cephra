@@ -1,5 +1,7 @@
 import type { NoteContext } from "./generate";
 import { RED_FLAG_FIELDS } from "@/lib/schemas/red-flags";
+import type { Prescription } from "@/lib/schemas/prescription";
+import { CATEGORY_LABELS } from "@/lib/schemas/prescription";
 
 // ── Shared utilities ──
 
@@ -577,6 +579,56 @@ function generateRedFlags(ctx: NoteContext): string {
   return lines.join("\n");
 }
 
+// ── Prescription formatting helper (shared with follow-up letter) ──
+
+function formatPrescription(rx: Prescription): string[] {
+  const lines: string[] = [];
+  const name = str(rx.medication_name) || "Unnamed medication";
+  const dosage = str(rx.dosage);
+  const freq = rx.frequency === "custom" ? str(rx.frequency_custom) : str(rx.frequency);
+  const route = str(rx.route);
+  const indication = str(rx.indication);
+  const category = rx.category ? CATEGORY_LABELS[rx.category as keyof typeof CATEGORY_LABELS] || rx.category : "";
+
+  const headerParts = [name];
+  if (dosage) headerParts.push(dosage);
+  if (freq) headerParts.push(freq);
+  if (route) headerParts.push(route);
+  let header = `- ${headerParts.join(", ")}`;
+  if (category) header += ` (${category})`;
+  if (indication) header += ` — ${indication}`;
+  lines.push(header);
+
+  const durationValue = rx.duration_value;
+  const durationUnit = str(rx.duration_unit);
+  const quantity = str(rx.quantity);
+  const detailParts: string[] = [];
+  if (typeof durationValue === "number" && durationUnit) {
+    detailParts.push(`Duration: ${durationValue} ${durationUnit}`);
+  } else if (durationUnit === "ongoing") {
+    detailParts.push("Duration: ongoing");
+  }
+  if (quantity) detailParts.push(`Quantity: ${quantity}`);
+  if (detailParts.length > 0) lines.push(`  ${detailParts.join(". ")}.`);
+
+  const instructions = str(rx.special_instructions);
+  if (instructions) lines.push(`  Instructions: ${instructions}`);
+
+  const prescriber = str(rx.prescriber_name);
+  const prescribedDate = str(rx.prescribed_date);
+  if (prescriber || prescribedDate) {
+    const attribution = [
+      prescriber ? `Prescribed by ${prescriber}` : "Prescribed",
+      prescribedDate ? `on ${prescribedDate}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    lines.push(`  ${attribution}.`);
+  }
+
+  return lines;
+}
+
 // ── Section 10: Management Plan and Treatment ──
 
 function generateManagementPlan(ctx: NoteContext): string {
@@ -606,6 +658,26 @@ function generateManagementPlan(ctx: NoteContext): string {
     lines.push("");
     lines.push("Treatment plan:");
     lines.push(changes);
+  }
+
+  // Electronic prescriptions (new at this visit)
+  const prescriptions = Array.isArray(workupData.prescriptions)
+    ? (workupData.prescriptions as Prescription[]).filter((rx) => rx && rx.medication_name)
+    : [];
+
+  if (prescriptions.length > 0) {
+    lines.push("");
+    lines.push("New Prescriptions:");
+    for (const rx of prescriptions) {
+      for (const line of formatPrescription(rx)) {
+        lines.push(line);
+      }
+    }
+  } else if (!changes) {
+    // No treatment changes AND no prescriptions — surface an explicit line so
+    // the letter never leaves the section blank.
+    lines.push("");
+    lines.push("No medications prescribed this visit.");
   }
 
   // Safety counselling

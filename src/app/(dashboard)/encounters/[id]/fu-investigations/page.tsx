@@ -65,6 +65,20 @@ export default function FuInvestigationsPage() {
 
           return (
             <div className="space-y-6">
+              <div className="space-y-2">
+                <Label>
+                  Paste Raw Results{" "}
+                  <InfoTip content="Paste raw lab or imaging results from your pathology system, then click the sparkle icon to summarize. The summary will replace the raw text." />
+                </Label>
+                <Textarea
+                  value={(v.rawResultsSummary as string) || ""}
+                  onChange={(e) => set("rawResultsSummary", e.target.value)}
+                  placeholder="Paste raw lab or imaging results here, then click the sparkle to summarize..."
+                  className="min-h-[120px]"
+                  summarizeMode="labs"
+                />
+              </div>
+
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Results Reviewed <InfoTip content={tip("investigations.resultsReviewed")} /></h3>

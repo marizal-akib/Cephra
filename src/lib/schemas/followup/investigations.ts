@@ -22,6 +22,9 @@ export const investigationsSchema = z.object({
   // Results reviewed since last consultation
   results: z.array(investigationResultSchema).optional(),
 
+  // Clinical summary of pasted raw lab/imaging results
+  rawResultsSummary: z.string().optional(),
+
   // Pending investigations
   pending: z.string().optional(),
 

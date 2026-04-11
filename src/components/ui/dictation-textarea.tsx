@@ -13,6 +13,11 @@ interface DictationTextareaProps
   extends React.ComponentProps<typeof Textarea> {
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
   value?: string;
+  /**
+   * When set, the Sparkles button calls a summarization endpoint instead of
+   * the default refine endpoint. Use "labs" for pasted raw lab/imaging results.
+   */
+  summarizeMode?: "labs" | null;
 }
 
 type OverlayState = "idle" | "recording" | "transcribing" | "reviewing" | "refining" | "refine-review";
@@ -172,7 +177,7 @@ function ListeningVis({
 const DictationTextarea = React.forwardRef<
   HTMLTextAreaElement,
   DictationTextareaProps
->(({ onChange, value, className, disabled, ...props }, ref) => {
+>(({ onChange, value, className, disabled, summarizeMode = null, ...props }, ref) => {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const [overlayState, setOverlayState] = React.useState<OverlayState>("idle");
   const [pendingTranscript, setPendingTranscript] = React.useState<string | null>(null);
@@ -316,8 +321,15 @@ const DictationTextarea = React.forwardRef<
     setOverlayState("refining");
     setRefinedText(null);
 
+    const endpoint =
+      summarizeMode === "labs"
+        ? "/api/cephra/summarize-labs"
+        : "/api/cephra/refine";
+    const failureLabel =
+      summarizeMode === "labs" ? "Summarize failed." : "Refine failed.";
+
     try {
-      const res = await fetch("/api/cephra/refine", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -326,20 +338,23 @@ const DictationTextarea = React.forwardRef<
       const data = await res.json();
 
       if (!data.ok) {
-        throw new Error(data.error || "Refine failed.");
+        throw new Error(data.error || failureLabel);
       }
 
-      if (data.refined) {
-        setRefinedText(data.refined);
+      const result =
+        summarizeMode === "labs" ? data.summary : data.refined;
+
+      if (result) {
+        setRefinedText(result);
         setOverlayState("refine-review");
       } else {
         setOverlayState("idle");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Refine failed.");
+      toast.error(err instanceof Error ? err.message : failureLabel);
       setOverlayState("idle");
     }
-  }, [value]);
+  }, [value, summarizeMode]);
 
   const handleRefineReplace = React.useCallback(() => {
     if (!refinedText || !onChange) return;
@@ -410,7 +425,7 @@ const DictationTextarea = React.forwardRef<
       {/* ── Idle: toolbar (Refine + Mic) ── */}
       {overlayState === "idle" && (
         <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5">
-          {/* Refine button — only when there's text */}
+          {/* Refine / Summarize button — only when there's text */}
           {String(value || "").trim().length > 0 && !isBrowserListening && (
             <Button
               type="button"
@@ -419,7 +434,11 @@ const DictationTextarea = React.forwardRef<
               disabled={disabled}
               className="h-7 w-7 p-0 rounded-full text-muted-foreground hover:text-foreground"
               onClick={handleRefine}
-              title="Clean up and organise this note"
+              title={
+                summarizeMode === "labs"
+                  ? "Summarize pasted results"
+                  : "Clean up and organise this note"
+              }
             >
               <Sparkles className="h-3.5 w-3.5" />
             </Button>
@@ -542,20 +561,22 @@ const DictationTextarea = React.forwardRef<
         </div>
       )}
 
-      {/* ── Refining overlay ── */}
+      {/* ── Refining / Summarizing overlay ── */}
       {overlayState === "refining" && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 rounded-md bg-background/95 backdrop-blur-sm">
           <Sparkles className="h-5 w-5 animate-pulse text-blue-400" />
-          <p className="text-xs font-medium text-muted-foreground">Refining...</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            {summarizeMode === "labs" ? "Summarizing..." : "Refining..."}
+          </p>
         </div>
       )}
 
-      {/* ── Refine review card (below textarea) ── */}
+      {/* ── Refine / Summary review card (below textarea) ── */}
       {overlayState === "refine-review" && refinedText && (
         <div className="mt-2 rounded-md border border-border bg-background shadow-sm">
           <div className="flex items-center justify-between px-2 py-1 border-b border-border">
             <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">
-              Refined note
+              {summarizeMode === "labs" ? "Summary" : "Refined note"}
             </span>
             <span className="text-[10px] text-muted-foreground/60 tabular-nums">
               {refinedText.trim().split(/\s+/).filter(Boolean).length} words

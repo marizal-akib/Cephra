@@ -4,6 +4,16 @@ import type { BaselineValues } from "@/lib/follow-up/baseline-adapter";
 import type { MedicationEntry } from "@/lib/schemas/followup/medication-review";
 import type { InvestigationResult } from "@/lib/schemas/followup/investigations";
 import type { RedFlagItem } from "@/lib/schemas/followup/red-flag-review";
+import type {
+  Prescription,
+  PrescriptionReview,
+} from "@/lib/schemas/prescription";
+import {
+  ACTION_LABELS,
+  BENEFIT_LABELS,
+  CATEGORY_LABELS,
+  TOLERABILITY_LABELS,
+} from "@/lib/schemas/prescription";
 
 export interface FollowUpNoteContext {
   patientName: string;
@@ -362,6 +372,78 @@ function generateRedFlagReview(ctx: FollowUpNoteContext): string {
   return lines.join("\n");
 }
 
+// ── Prescription formatting helpers ──
+
+function formatNewPrescription(rx: Prescription): string[] {
+  const lines: string[] = [];
+  const name = str(rx.medication_name) || "Unnamed medication";
+  const dosage = str(rx.dosage);
+  const freq = rx.frequency === "custom" ? str(rx.frequency_custom) : str(rx.frequency);
+  const route = str(rx.route);
+  const indication = str(rx.indication);
+  const category = rx.category ? CATEGORY_LABELS[rx.category as keyof typeof CATEGORY_LABELS] || rx.category : "";
+
+  const headerParts = [name];
+  if (dosage) headerParts.push(dosage);
+  if (freq) headerParts.push(freq);
+  if (route) headerParts.push(route);
+  let header = `- ${headerParts.join(", ")}`;
+  if (category) header += ` (${category})`;
+  if (indication) header += ` — ${indication}`;
+  lines.push(header);
+
+  const durationValue = rx.duration_value;
+  const durationUnit = str(rx.duration_unit);
+  const quantity = str(rx.quantity);
+  const detailParts: string[] = [];
+  if (typeof durationValue === "number" && durationUnit) {
+    detailParts.push(`Duration: ${durationValue} ${durationUnit}`);
+  } else if (durationUnit === "ongoing") {
+    detailParts.push("Duration: ongoing");
+  }
+  if (quantity) detailParts.push(`Quantity: ${quantity}`);
+  if (detailParts.length > 0) lines.push(`  ${detailParts.join(". ")}.`);
+
+  const instructions = str(rx.special_instructions);
+  if (instructions) lines.push(`  Instructions: ${instructions}`);
+
+  const prescriber = str(rx.prescriber_name);
+  const prescribedDate = str(rx.prescribed_date);
+  if (prescriber || prescribedDate) {
+    const attribution = [
+      prescriber ? `Prescribed by ${prescriber}` : "Prescribed",
+      prescribedDate ? `on ${prescribedDate}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    lines.push(`  ${attribution}.`);
+  }
+
+  return lines;
+}
+
+function reviewHeader(r: PrescriptionReview): string {
+  const name = str(r.previous_medication_name) || "Medication";
+  const dose = str(r.previous_dosage);
+  const freq = str(r.previous_frequency);
+  const parts = [name];
+  if (dose) parts.push(dose);
+  if (freq) parts.push(freq);
+  return parts.join(", ");
+}
+
+function labelBenefit(key: string): string {
+  return (BENEFIT_LABELS as Record<string, string>)[key] || key;
+}
+
+function labelTolerability(key: string): string {
+  return (TOLERABILITY_LABELS as Record<string, string>)[key] || key;
+}
+
+function labelAction(key: string): string {
+  return (ACTION_LABELS as Record<string, string>)[key] || key;
+}
+
 // ── Section 7: Assessment, Management and Follow-up Plan ──
 
 function generateAssessmentPlan(ctx: FollowUpNoteContext): string {
@@ -390,6 +472,95 @@ function generateAssessmentPlan(ctx: FollowUpNoteContext): string {
   lines.push("Treatment changes:");
   const changes = str(plan.treatment_changes);
   lines.push(changes || "No changes documented.");
+
+  // ── Electronic prescription review and new prescriptions ──
+  const reviews = Array.isArray(plan.prescription_reviews)
+    ? (plan.prescription_reviews as PrescriptionReview[]).filter(
+        (r) => r && (r.action || r.benefit || r.tolerability)
+      )
+    : [];
+  const newPrescriptions = Array.isArray(plan.prescriptions)
+    ? (plan.prescriptions as Prescription[]).filter((rx) => rx && rx.medication_name)
+    : [];
+
+  const continuedReviews = reviews.filter((r) => r.action === "continue");
+  const changedReviews = reviews.filter(
+    (r) => r.action === "increase" || r.action === "decrease" || r.action === "switch"
+  );
+  const stoppedReviews = reviews.filter((r) => r.action === "stop");
+
+  if (reviews.length > 0) {
+    lines.push("");
+    lines.push("Medication Review:");
+    for (const r of reviews) {
+      const bits: string[] = [];
+      if (r.benefit) bits.push(`benefit ${labelBenefit(r.benefit)}`);
+      if (r.tolerability) bits.push(`tolerability ${labelTolerability(r.tolerability)}`);
+      if (r.action) bits.push(`action: ${labelAction(r.action)}`);
+      const suffix = bits.length > 0 ? ` — ${bits.join(", ")}` : "";
+      lines.push(`- ${reviewHeader(r)}${suffix}.`);
+    }
+  }
+
+  if (continuedReviews.length > 0) {
+    lines.push("");
+    lines.push("Medications continued unchanged:");
+    for (const r of continuedReviews) {
+      lines.push(`- ${reviewHeader(r)}.`);
+    }
+  }
+
+  if (changedReviews.length > 0) {
+    lines.push("");
+    lines.push("Medication changes:");
+    for (const r of changedReviews) {
+      const prevDose = str(r.previous_dosage);
+      const prevFreq = str(r.previous_frequency);
+      const newDose = str(r.new_dose) || prevDose;
+      const newFreq = str(r.new_frequency) || prevFreq;
+      const name = str(r.previous_medication_name) || "Medication";
+      const beforeParts = [name];
+      if (prevDose) beforeParts.push(prevDose);
+      if (prevFreq) beforeParts.push(prevFreq);
+      const afterParts: string[] = [];
+      if (newDose) afterParts.push(newDose);
+      if (newFreq) afterParts.push(newFreq);
+      const action = r.action ? ` (${labelAction(r.action).toLowerCase()})` : "";
+      lines.push(
+        `- ${beforeParts.join(", ")} → ${afterParts.join(", ") || "amended"}${action}.`
+      );
+    }
+  }
+
+  if (stoppedReviews.length > 0) {
+    lines.push("");
+    lines.push("Stopped Medications:");
+    for (const r of stoppedReviews) {
+      const reason = str(r.stop_reason);
+      lines.push(
+        `- ${reviewHeader(r)} — stopped${reason ? `. Reason: ${reason}` : "."}`
+      );
+    }
+  }
+
+  if (newPrescriptions.length > 0) {
+    lines.push("");
+    lines.push("New Prescriptions this visit:");
+    for (const rx of newPrescriptions) {
+      for (const line of formatNewPrescription(rx)) {
+        lines.push(line);
+      }
+    }
+  }
+
+  if (
+    reviews.length === 0 &&
+    newPrescriptions.length === 0 &&
+    !changes
+  ) {
+    lines.push("");
+    lines.push("No medications prescribed this visit.");
+  }
 
   // Safety counselling
   lines.push("");

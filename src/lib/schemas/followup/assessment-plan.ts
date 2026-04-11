@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { prescriptionSchema, prescriptionReviewSchema } from "../prescription";
 
 export const assessmentPlanSchema = z.object({
   // Assessment subsection
@@ -8,6 +9,10 @@ export const assessmentPlanSchema = z.object({
 
   // Treatment changes subsection
   treatment_changes: z.string().optional(),
+
+  // Electronic prescription subsection
+  prescriptions: z.array(prescriptionSchema).optional(),
+  prescription_reviews: z.array(prescriptionReviewSchema).optional(),
 
   // Safety counselling subsection
   safety_counselling: z.string().optional(),

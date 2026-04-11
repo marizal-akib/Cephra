@@ -31,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PrescriptionList } from "@/components/encounter/prescription-list";
+import type { Prescription } from "@/lib/schemas/prescription";
 
 interface InvestigationResult {
   name: string;
@@ -83,6 +85,7 @@ export default function WorkupPage() {
   const supabase = useMemo(() => createClient(), []);
   const {
     encounterId,
+    encounter,
     diagnosticOutput,
     assessment,
     updateAssessmentLocal,
@@ -97,10 +100,13 @@ export default function WorkupPage() {
   const [pendingInvestigations, setPendingInvestigations] = useState("");
   const [assessmentSummary, setAssessmentSummary] = useState("");
   const [treatmentChanges, setTreatmentChanges] = useState("");
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [clinicianName, setClinicianName] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hydratedRef = useRef(false);
 
   const workup = diagnosticOutput?.suggestedWorkup || [];
   const redFlagResult = diagnosticOutput?.redFlagResult;
@@ -110,8 +116,19 @@ export default function WorkupPage() {
   // Guard: never overwrite non-empty local state with empty assessment - that indicates
   // a race where our sync hasn't been reflected in the layout yet.
   // Use functional setState and skip when unchanged to avoid sync/hydrate re-render loop.
+  // `hydratedRef` sentinel: once the page has hydrated from a non-empty payload, array
+  // fields (investigation_results, prescriptions) stop re-hydrating from the layout sync
+  // to avoid clobbering rapid in-progress edits.
   useEffect(() => {
     const data = (assessment?.workup_data || {}) as Record<string, unknown>;
+    const hasAnyData =
+      Object.keys(data).length > 0 &&
+      Object.values(data).some((v) => {
+        if (v === null || v === undefined || v === "") return false;
+        if (Array.isArray(v)) return v.length > 0;
+        if (typeof v === "object") return Object.keys(v).length > 0;
+        return true;
+      });
     const acceptedItems =
       typeof data.accepted_workup_items === "object" && data.accepted_workup_items
         ? (data.accepted_workup_items as Record<string, unknown>)
@@ -133,13 +150,48 @@ export default function WorkupPage() {
     });
     setWorkupNotes(workupNotesStr);
     setKeyDiagnosticQuestion((data.key_diagnostic_question as string) || "");
-    setInvestigationResults(
-      Array.isArray(data.investigation_results) ? (data.investigation_results as InvestigationResult[]) : []
-    );
+    const incomingInvestigations = Array.isArray(data.investigation_results)
+      ? (data.investigation_results as InvestigationResult[])
+      : [];
+    const incomingPrescriptions = Array.isArray(data.prescriptions)
+      ? (data.prescriptions as Prescription[])
+      : [];
+    // Array hydration guard: skip if we've already hydrated AND incoming is empty while
+    // local has items (race between debounced save and layout sync).
+    setInvestigationResults((prev) => {
+      if (hydratedRef.current && incomingInvestigations.length === 0 && prev.length > 0) return prev;
+      if (JSON.stringify(prev) === JSON.stringify(incomingInvestigations)) return prev;
+      return incomingInvestigations;
+    });
+    setPrescriptions((prev) => {
+      if (hydratedRef.current && incomingPrescriptions.length === 0 && prev.length > 0) return prev;
+      if (JSON.stringify(prev) === JSON.stringify(incomingPrescriptions)) return prev;
+      return incomingPrescriptions;
+    });
     setPendingInvestigations((data.pending_investigations as string) || "");
     setAssessmentSummary((data.assessment_summary as string) || "");
     setTreatmentChanges((data.treatment_changes as string) || "");
+    if (hasAnyData) hydratedRef.current = true;
   }, [assessment?.workup_data]);
+
+  // Fetch logged-in clinician profile for prescriber auto-fill.
+  useEffect(() => {
+    let cancelled = false;
+    const clinicianId = encounter?.clinician_id;
+    if (!clinicianId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", clinicianId)
+        .maybeSingle();
+      if (cancelled) return;
+      setClinicianName((data?.full_name as string) || "");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [encounter?.clinician_id, supabase]);
 
   const persistWorkupData = useCallback(
     async (data: {
@@ -151,6 +203,7 @@ export default function WorkupPage() {
       pending_investigations: string;
       assessment_summary: string;
       treatment_changes: string;
+      prescriptions: Prescription[];
     }) => {
       setSaving(true);
       try {
@@ -178,6 +231,7 @@ export default function WorkupPage() {
       pending_investigations: pendingInvestigations,
       assessment_summary: assessmentSummary,
       treatment_changes: treatmentChanges,
+      prescriptions,
     };
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
@@ -186,7 +240,7 @@ export default function WorkupPage() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [accepted, workupNotes, includeWorkupSuggestions, keyDiagnosticQuestion, investigationResults, pendingInvestigations, assessmentSummary, treatmentChanges, persistWorkupData]);
+  }, [accepted, workupNotes, includeWorkupSuggestions, keyDiagnosticQuestion, investigationResults, pendingInvestigations, assessmentSummary, treatmentChanges, prescriptions, persistWorkupData]);
 
   // Sync accepted/workupNotes to context so note page has latest data on nav.
   // Debounce to avoid layout re-renders on every checkbox/keystroke.
@@ -199,7 +253,8 @@ export default function WorkupPage() {
     pending_investigations: pendingInvestigations,
     assessment_summary: assessmentSummary,
     treatment_changes: treatmentChanges,
-  }), [workupNotes, accepted, includeWorkupSuggestions, keyDiagnosticQuestion, investigationResults, pendingInvestigations, assessmentSummary, treatmentChanges]);
+    prescriptions,
+  }), [workupNotes, accepted, includeWorkupSuggestions, keyDiagnosticQuestion, investigationResults, pendingInvestigations, assessmentSummary, treatmentChanges, prescriptions]);
 
   useEffect(() => {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
@@ -618,6 +673,22 @@ export default function WorkupPage() {
               className="min-h-[100px]"
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Prescriptions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PrescriptionList
+            value={prescriptions}
+            onChange={setPrescriptions}
+            encounterId={encounterId}
+            defaultPrescriberName={clinicianName}
+            defaultIndication={phenotypes[0]?.label}
+            disabled={encounter?.status === "completed"}
+          />
         </CardContent>
       </Card>
 

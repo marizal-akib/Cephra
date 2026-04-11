@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEncounterContext } from "../layout";
 import { FollowUpFormWrapper } from "@/components/encounter/followup-form-wrapper";
 import { assessmentPlanSchema } from "@/lib/schemas/followup/assessment-plan";
@@ -19,6 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PrescriptionList } from "@/components/encounter/prescription-list";
+import { PrescriptionReviewList } from "@/components/encounter/prescription-review-list";
+import { createClient } from "@/lib/supabase/client";
+import { fetchPreviousActivePrescriptions } from "@/lib/follow-up/previous-prescriptions";
+import type {
+  Prescription,
+  PrescriptionReview,
+} from "@/lib/schemas/prescription";
 
 export default function FuPlanPage() {
   const { encounterId, encounter, followUpAssessment, diagnosticOutput, updateFollowUpLocal, updateEncounterLocal } =
@@ -26,6 +34,7 @@ export default function FuPlanPage() {
   const tip = (f: Parameters<typeof getTooltip>[1]) =>
     getTooltip(encounter?.diagnosis_template, f);
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
 
   const defaultValues = (followUpAssessment?.assessment_plan || {}) as Record<string, unknown>;
 
@@ -37,6 +46,51 @@ export default function FuPlanPage() {
   );
 
   const topDiagnosis = diagnosticOutput?.phenotypes[0];
+
+  const [previousPrescriptions, setPreviousPrescriptions] = useState<Prescription[]>([]);
+  const [clinicianName, setClinicianName] = useState("");
+
+  // Fetch previous-visit active prescriptions (one step back). Kept out of form
+  // state so FollowUpFormWrapper's reset-on-defaultValues-change won't clobber
+  // in-progress review edits when this fetch returns late.
+  useEffect(() => {
+    let cancelled = false;
+    const patientId = encounter?.patient_id;
+    const createdAt = encounter?.created_at;
+    if (!patientId || !createdAt) return;
+    (async () => {
+      const result = await fetchPreviousActivePrescriptions(
+        supabase,
+        patientId,
+        encounterId,
+        createdAt
+      );
+      if (cancelled) return;
+      setPreviousPrescriptions(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [encounterId, encounter?.patient_id, encounter?.created_at, supabase]);
+
+  // Clinician profile for prescriber auto-fill
+  useEffect(() => {
+    let cancelled = false;
+    const clinicianId = encounter?.clinician_id;
+    if (!clinicianId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", clinicianId)
+        .maybeSingle();
+      if (cancelled) return;
+      setClinicianName((data?.full_name as string) || "");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [encounter?.clinician_id, supabase]);
 
   return (
     <div className="max-w-3xl">
@@ -114,6 +168,30 @@ export default function FuPlanPage() {
                   onChange={(e) => set("treatment_changes", e.target.value)}
                   placeholder="Specific changes made today: dose adjustments, new prescriptions, stopped medications, referrals. Include dose, route, frequency, titration instructions..."
                   className="min-h-[100px]"
+                />
+              </div>
+
+              {previousPrescriptions.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Medication Review</h3>
+                  <PrescriptionReviewList
+                    previousPrescriptions={previousPrescriptions}
+                    reviews={(v.prescription_reviews as PrescriptionReview[]) || []}
+                    onReviewsChange={(next) => set("prescription_reviews", next)}
+                    disabled={encounter?.status === "completed"}
+                  />
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-sm font-semibold mb-3">New Prescriptions</h3>
+                <PrescriptionList
+                  value={(v.prescriptions as Prescription[]) || []}
+                  onChange={(next) => set("prescriptions", next)}
+                  encounterId={encounterId}
+                  defaultPrescriberName={clinicianName}
+                  defaultIndication={topDiagnosis?.label}
+                  disabled={encounter?.status === "completed"}
                 />
               </div>
 
