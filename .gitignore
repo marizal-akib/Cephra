@@ -22,3 +22,12 @@ pnpm-debug.log*
 
 # Local AI/editor metadata
 .claude/
+.obsidian/
+
+# Local drafts and scratch files
+*.base
+actions-image.md
+UPDATE_REPORT_*.md
+
+# OS metadata
+Thumbs.db
