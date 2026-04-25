@@ -102,7 +102,25 @@ export const prescriptionSchema = z.object({
   special_instructions: z.string().optional(),
   prescriber_name: z.string().optional(),
   prescribed_date: z.string().optional(),
-  status: z.enum(["active", "stopped", "amended"]).optional(),
+  // Lifecycle states. Original values (active|stopped|amended) preserved for
+  // backward compatibility with rows persisted before Phase 3. New values
+  // (draft|ready_to_sign|signed|cancelled|transmitted|superseded) follow
+  // §9.6 of the Headache Evaluation Tool Implementation Pack.
+  status: z
+    .enum([
+      "active",
+      "stopped",
+      "amended",
+      "draft",
+      "ready_to_sign",
+      "signed",
+      "cancelled",
+      "transmitted",
+      "superseded",
+    ])
+    .optional(),
+  signed_by: z.string().optional(),
+  signed_at: z.string().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });
