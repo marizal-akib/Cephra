@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const migraineWithAura: RuleSet = {
   diagnosis: "migraine_with_aura",
   label: "Migraine with Aura",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

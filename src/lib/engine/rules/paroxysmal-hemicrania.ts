@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const paroxysmalHemicrania: RuleSet = {
   diagnosis: "paroxysmal_hemicrania",
   label: "Paroxysmal Hemicrania",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

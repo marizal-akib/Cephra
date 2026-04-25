@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const medicationOveruse: RuleSet = {
   diagnosis: "medication_overuse",
   label: "Medication-overuse Headache",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

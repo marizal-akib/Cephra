@@ -8,7 +8,14 @@ export type DiagnosisCode =
   | "paroxysmal_hemicrania"
   | "hemicrania_continua"
   | "sunct"
-  | "suna";
+  | "suna"
+  | "giant_cell_arteritis"
+  | "iih"
+  | "sah"
+  | "meningitis"
+  | "cvst";
+
+export type RuleCategory = "primary" | "secondary";
 
 export type Confidence = "high" | "moderate" | "possible";
 
@@ -21,6 +28,21 @@ export interface RedFlagResult {
   }[];
 }
 
+// Plain structural shape of a previous investigation row, mirroring
+// PreviousInvestigationResult in src/lib/schemas/previous-investigations.ts
+// without dragging Zod into the engine bundle.
+export interface InvestigationResult {
+  name: string;
+  result: string;
+  interpretation?: string;
+  nameSpecify?: string;
+  abnormalDetails?: string;
+  numericValue?: number;
+  units?: string;
+  flag?: "low" | "normal" | "high";
+  finding?: string;
+}
+
 export interface DiagnosticInput {
   redFlags: Record<string, boolean>;
   pattern: Record<string, unknown>;
@@ -31,6 +53,8 @@ export interface DiagnosticInput {
   triggers: Record<string, unknown>;
   medications: Record<string, unknown>;
   clinicalExamination?: Record<string, unknown>;
+  previousInvestigations?: { results?: InvestigationResult[] };
+  demographics?: { age?: number; sex?: "male" | "female" | "other" };
 }
 
 export interface CriterionResult {
@@ -42,6 +66,7 @@ export interface CriterionResult {
 export interface RuleSet {
   diagnosis: DiagnosisCode;
   label: string;
+  category: RuleCategory;
   requiredAll: (input: DiagnosticInput) => CriterionResult[];
   supportingAny: (input: DiagnosticInput) => (CriterionResult & { weight: number })[];
   downgradeIfAny: (input: DiagnosticInput) => CriterionResult[];
@@ -51,6 +76,7 @@ export interface RuleSet {
 export interface PhenotypeResult {
   diagnosis: DiagnosisCode;
   label: string;
+  category: RuleCategory;
   confidence: Confidence;
   score: number;
   rationale: string[];
@@ -61,6 +87,7 @@ export interface PhenotypeResult {
 export interface DiagnosticOutput {
   redFlagResult: RedFlagResult;
   phenotypes: PhenotypeResult[];
+  secondaryAlerts: PhenotypeResult[];
   suggestedWorkup: string[];
   engineVersion: string;
 }

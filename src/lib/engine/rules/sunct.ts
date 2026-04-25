@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const sunct: RuleSet = {
   diagnosis: "sunct",
   label: "SUNCT",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

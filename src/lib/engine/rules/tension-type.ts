@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const tensionType: RuleSet = {
   diagnosis: "tension_type",
   label: "Tension-type Headache",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const cluster: RuleSet = {
   diagnosis: "cluster",
   label: "Cluster Headache",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

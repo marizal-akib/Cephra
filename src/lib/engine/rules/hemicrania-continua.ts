@@ -4,6 +4,7 @@ import { num, bool } from "../helpers";
 export const hemicraniaContinua: RuleSet = {
   diagnosis: "hemicrania_continua",
   label: "Hemicrania Continua",
+  category: "primary",
 
   requiredAll: (i: DiagnosticInput) => [
     {

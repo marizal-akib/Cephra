@@ -33,7 +33,7 @@ export function DiagnosisRailContent({ output }: DiagnosisRailContentProps) {
     );
   }
 
-  const { redFlagResult, phenotypes, suggestedWorkup } = output;
+  const { redFlagResult, phenotypes, secondaryAlerts, suggestedWorkup } = output;
 
   return (
     <div className="space-y-4">
@@ -70,6 +70,37 @@ export function DiagnosisRailContent({ output }: DiagnosisRailContentProps) {
           </Badge>
         </CardContent>
       </Card>
+
+      {/* Secondary cause alerts (GCA, IIH, SAH, Meningitis, CVST) */}
+      {secondaryAlerts.length > 0 && (
+        <Card className="border-amber-500/60 bg-amber-50/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium uppercase tracking-wider text-amber-800">
+              Consider Secondary Cause
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {secondaryAlerts.map((p: PhenotypeResult) => (
+              <div key={p.diagnosis} className="space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-medium">{p.label}</span>
+                  <Badge
+                    variant="secondary"
+                    className={cn("text-xs", CONFIDENCE_STYLES[p.confidence])}
+                  >
+                    {p.confidence} ({p.score})
+                  </Badge>
+                </div>
+                {p.rationale[0] && (
+                  <p className="text-xs text-muted-foreground">
+                    {p.rationale[0]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Phenotype Ranking */}
       <Card>

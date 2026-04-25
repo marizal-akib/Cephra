@@ -117,6 +117,10 @@ export default function EncounterLayout({
 
   const diagnosticOutput = useDiagnosis(
     mergedAssessment as ClinicianAssessment | null,
+    {
+      patient: mergedEncounter?.patient ?? null,
+      questionnaire: questionnaireResponse,
+    },
     mergedFollowUp as FollowUpAssessment | null
   );
 

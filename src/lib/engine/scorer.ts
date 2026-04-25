@@ -74,6 +74,7 @@ export function scoreRuleSet(
   return {
     diagnosis: ruleSet.diagnosis,
     label: ruleSet.label,
+    category: ruleSet.category,
     confidence,
     score,
     rationale,

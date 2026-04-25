@@ -17,6 +17,8 @@ export const redFlagsSchema = z.object({
   anticoagulation: z.boolean().default(false),
   jaw_claudication: z.boolean().default(false),
   scalp_tenderness: z.boolean().default(false),
+  visual_loss: z.boolean().default(false),
+  neck_stiffness: z.boolean().default(false),
   notes: z.string().optional(),
 });
 
@@ -39,4 +41,6 @@ export const RED_FLAG_FIELDS = [
   { name: "anticoagulation" as const, label: "On anticoagulation", severity: "high" },
   { name: "jaw_claudication" as const, label: "Jaw claudication", description: "Pain on chewing (GCA concern)", severity: "high" },
   { name: "scalp_tenderness" as const, label: "Scalp tenderness", description: "Especially temporal (GCA concern)", severity: "high" },
+  { name: "visual_loss" as const, label: "Visual loss / amaurosis fugax", description: "Transient or persistent loss of vision (GCA, retinal artery)", severity: "urgent" },
+  { name: "neck_stiffness" as const, label: "Neck stiffness", description: "Meningismus — meningitis or SAH concern", severity: "urgent" },
 ] as const;

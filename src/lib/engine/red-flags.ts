@@ -69,6 +69,18 @@ const RED_FLAG_RULES: RedFlagRule[] = [
     check: (i) => !!i.redFlags.jaw_claudication || !!i.redFlags.scalp_tenderness,
   },
   {
+    code: "visual_loss",
+    description: "Visual loss or amaurosis fugax",
+    severity: "urgent",
+    check: (i) => !!i.redFlags.visual_loss,
+  },
+  {
+    code: "neck_stiffness",
+    description: "Neck stiffness / meningismus",
+    severity: "urgent",
+    check: (i) => !!i.redFlags.neck_stiffness,
+  },
+  {
     code: "positional_cough",
     description: "Positional or cough/Valsalva-triggered headache",
     severity: "high",

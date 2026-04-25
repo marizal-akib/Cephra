@@ -4,7 +4,7 @@
  * during follow-up encounters.
  */
 
-import type { DiagnosticInput } from "@/lib/engine/types";
+import type { DiagnosticInput, InvestigationResult } from "@/lib/engine/types";
 import type { FollowUpAssessment } from "@/types";
 
 export function followUpToDiagnosticInput(
@@ -14,6 +14,7 @@ export function followUpToDiagnosticInput(
   const medReview = fuAssessment.medication_review || {};
   const exam = fuAssessment.examination || {};
   const redFlags = fuAssessment.red_flags || {};
+  const investigations = fuAssessment.investigations || {};
 
   // Build red flags from the checklist items
   const redFlagMap: Record<string, boolean> = {};
@@ -66,5 +67,12 @@ export function followUpToDiagnosticInput(
       fundoscopy_status: exam.fundoscopy_status,
       fundoscopy_details: exam.fundoscopy_details,
     },
+    previousInvestigations: Array.isArray(
+      (investigations as { results?: unknown }).results
+    )
+      ? {
+          results: (investigations as { results: InvestigationResult[] }).results,
+        }
+      : undefined,
   };
 }

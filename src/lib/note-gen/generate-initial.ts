@@ -515,7 +515,7 @@ function generateInvestigationsOrdered(ctx: NoteContext): string {
 // ── Section 8: Results Review ──
 
 function generateResultsReview(ctx: NoteContext): string {
-  const workupData = (ctx.assessment.workup_data || {}) as Record<string, unknown>;
+  const prior = (ctx.assessment.previous_investigations || {}) as Record<string, unknown>;
 
   interface InvResult {
     name: string;
@@ -524,8 +524,8 @@ function generateResultsReview(ctx: NoteContext): string {
     nameSpecify?: string;
     abnormalDetails?: string;
   }
-  const results = Array.isArray(workupData.investigation_results)
-    ? (workupData.investigation_results as InvResult[]).filter((r) => r.name)
+  const results = Array.isArray(prior.results)
+    ? (prior.results as InvResult[]).filter((r) => r.name)
     : [];
 
   if (results.length === 0) return "No results available for review at this stage.";
@@ -538,6 +538,13 @@ function generateResultsReview(ctx: NoteContext): string {
       : (r.result || "pending");
     lines.push(`- ${displayName}: ${resultText}. Interpretation: ${r.interpretation || "not yet stated"}.`);
   }
+
+  const notes = str(prior.notes);
+  if (notes) {
+    lines.push("");
+    lines.push(`Notes: ${notes}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -624,6 +631,17 @@ function formatPrescription(rx: Prescription): string[] {
       .filter(Boolean)
       .join(" ");
     lines.push(`  ${attribution}.`);
+  }
+
+  // Lifecycle annotation (Phase 3): signed/draft state from §9.6.
+  const signedBy = str(rx.signed_by);
+  const signedAt = str(rx.signed_at);
+  if (rx.status === "signed" || rx.status === "transmitted") {
+    const when = signedAt ? new Date(signedAt).toLocaleString() : "";
+    const who = signedBy || prescriber || "clinician";
+    lines.push(`  Signed by ${who}${when ? ` on ${when}` : ""}.`);
+  } else if (rx.status === "draft" || rx.status === "ready_to_sign") {
+    lines.push(`  Status: DRAFT — not yet signed.`);
   }
 
   return lines;
