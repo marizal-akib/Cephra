@@ -7,6 +7,9 @@ import {
   previousInvestigationsSchema,
   PREVIOUS_INVESTIGATION_NAME_OPTIONS,
   PREVIOUS_INVESTIGATION_RESULT_OPTIONS,
+  QUANTITATIVE_TESTS,
+  STRUCTURED_FINDINGS,
+  INVESTIGATION_FLAG_OPTIONS,
   type PreviousInvestigationResult,
 } from "@/lib/schemas/previous-investigations";
 import { Input } from "@/components/ui/input";
@@ -172,6 +175,104 @@ export default function PreviousInvestigationsPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {QUANTITATIVE_TESTS[inv.name] && (
+                        <div className="grid grid-cols-3 gap-2 mt-1.5">
+                          <div className="space-y-1 col-span-1">
+                            <Label className="text-xs">Value</Label>
+                            <Input
+                              type="number"
+                              inputMode="decimal"
+                              value={
+                                typeof inv.numericValue === "number"
+                                  ? inv.numericValue
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const next = [...results];
+                                const raw = e.target.value;
+                                next[idx] = {
+                                  ...next[idx],
+                                  numericValue:
+                                    raw === "" ? undefined : Number(raw),
+                                };
+                                set("results", next);
+                              }}
+                              placeholder="e.g. 100"
+                            />
+                          </div>
+                          <div className="space-y-1 col-span-1">
+                            <Label className="text-xs">Units</Label>
+                            <Input
+                              value={
+                                inv.units ?? QUANTITATIVE_TESTS[inv.name].units
+                              }
+                              onChange={(e) => {
+                                const next = [...results];
+                                next[idx] = {
+                                  ...next[idx],
+                                  units: e.target.value,
+                                };
+                                set("results", next);
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-1 col-span-1">
+                            <Label className="text-xs">Flag</Label>
+                            <Select
+                              value={inv.flag || ""}
+                              onValueChange={(val) => {
+                                const next = [...results];
+                                next[idx] = {
+                                  ...next[idx],
+                                  flag:
+                                    val === ""
+                                      ? undefined
+                                      : (val as PreviousInvestigationResult["flag"]),
+                                };
+                                set("results", next);
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="auto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {INVESTIGATION_FLAG_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt} value={opt}>
+                                    {opt}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      )}
+                      {STRUCTURED_FINDINGS[inv.name] && (
+                        <div className="space-y-1 mt-1.5">
+                          <Label className="text-xs">Finding</Label>
+                          <Select
+                            value={inv.finding || ""}
+                            onValueChange={(val) => {
+                              const next = [...results];
+                              next[idx] = {
+                                ...next[idx],
+                                finding: val || undefined,
+                              };
+                              set("results", next);
+                            }}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select finding (or leave blank)..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STRUCTURED_FINDINGS[inv.name].map((opt) => (
+                                <SelectItem key={opt} value={opt}>
+                                  {opt.replace(/_/g, " ")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       {inv.result === "Abnormal" && (
                         <div className="space-y-1 mt-1.5">
                           <Label className="text-xs">Abnormal Result Details</Label>

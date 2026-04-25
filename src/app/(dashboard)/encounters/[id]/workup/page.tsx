@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { PrescriptionList } from "@/components/encounter/prescription-list";
 import type { Prescription } from "@/lib/schemas/prescription";
+import type { MedsFormData } from "@/lib/schemas/meds";
 
 interface InvestigationResult {
   name: string;
@@ -681,12 +682,20 @@ export default function WorkupPage() {
           <CardTitle className="text-base">Prescriptions</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <strong>Auto-populated values are non-clinical demo defaults.</strong>{" "}
+            Verify dose, route, frequency and duration against current BNF / dm+d
+            before issuing.
+          </div>
           <PrescriptionList
             value={prescriptions}
             onChange={setPrescriptions}
             encounterId={encounterId}
             defaultPrescriberName={clinicianName}
             defaultIndication={phenotypes[0]?.label}
+            topPhenotype={phenotypes[0]?.label}
+            medsData={(assessment?.medications as MedsFormData) ?? null}
+            phenotypeLabels={phenotypes.map((p) => p.label)}
             disabled={encounter?.status === "completed"}
           />
         </CardContent>
