@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GuidelineChatButton } from "@/components/guidelines/guideline-chat-button";
+import { GuidelineChatPanel } from "@/components/guidelines/guideline-chat-panel";
 import {
   Sheet,
   SheetContent,
@@ -85,6 +87,7 @@ export function ClinicianShell({
 }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const [chatOpen, setChatOpen] = useState(false);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -166,6 +169,15 @@ export function ClinicianShell({
         </header>
         {children}
       </main>
+
+      <GuidelineChatButton
+        onClick={() => setChatOpen(true)}
+        isOpen={chatOpen}
+      />
+      <GuidelineChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
     </div>
   );
 }
